@@ -232,21 +232,6 @@ Internal product and architecture specifications are kept in `personal/`, which 
 - Some workspace scripts and applications are placeholders.
 - The workspace is mid-refactor; `typecheck` and some scripts may report pre-existing errors until cleanup is complete.
 
-## Roadmap
-
-- [x] Layered L1–L5 architecture with dependency injection
-- [x] Solid-OIDC authentication with DPoP
-- [x] Body measurement persistence with conditional writes
-- [x] Shared vocabulary and SHACL shape packages
-- [x] Domain unit tests
-- [ ] Enforce SHACL validation before writes
-- [ ] Implement Pod bootstrap and ACL management
-- [ ] Add automated integration tests against Community Solid Server
-- [ ] Discover storage via `pim:storage` and register a Type Index
-- [ ] Complete nutrition, workout, health, access, professional, and social modules
-- [ ] Add offline cache and resilient error recovery
-- [ ] Production hardening, accessibility, and UI polish
-
 ## Contributing
 
 1. Create a branch from `main`.

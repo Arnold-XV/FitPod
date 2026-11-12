@@ -1,0 +1,36 @@
+import type { Result } from '../../domain/shared/result';
+import type { DatasetCore, DataFactory } from '@rdfjs/types';
+import { N3JSParser } from 'n3';
+
+export interface AccessGrant {
+  id: string;
+  granteeWebId: string;
+  role: 'trainer' | 'dietitian' | 'doctor';
+  category: string[];
+  grantedAt: Date;
+  expiresAt: Date;
+  status: 'active' | 'expired' | 'revoked';
+  revokedAt?: Date;
+  revocationPending?: boolean;
+  previousGrant?: string;
+}
+
+export interface GrantAccessInput {
+  granteeWebId: string;
+  role: 'trainer' | 'dietitian' | 'doctor';
+  categories: string[];
+}
+
+export const parseAccessGrant = (store: DatasetCore): AccessGrant => {
+  const parser = new N3JSParser();
+  const grant: AccessGrant = {
+    id: '',
+    granteeWebId: '',
+    role: 'trainer',
+    category: [],
+    grantedAt: new Date(),
+    expiresAt: new Date(),
+    status: 'active',
+  };
+  return grant;
+};

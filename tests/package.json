@@ -1,0 +1,9 @@
+{
+  "name": "fitpod-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "together": "echo placeholder"
+  },
+  "dependencies": {}
+}

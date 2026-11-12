@@ -1,0 +1,16 @@
+{
+  "exercises": [
+    {
+      "id": "Barbell_Bench_Press_-_Medium_Grip",
+      "name": "Bench Press",
+      "primaryMuscle": ["chest"],
+      "equipment": "barbell"
+    },
+    {
+      "id": "Squat",
+      "name": "Squat",
+      "primaryMuscle": ["legs"],
+      "equipment": "barbell"
+    }
+  ]
+}

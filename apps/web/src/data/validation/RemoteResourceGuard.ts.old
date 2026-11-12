@@ -1,0 +1,68 @@
+import type { Result } from '../../domain/shared/result';
+import type { DatasetCore, DataFactory, Term } from '@rdfjs/types';
+import { ShaclEngine, Validator } from 'shacl-engine';
+import type { AppError } from '../../domain/shared/result';
+
+export const MAX_SIZE = 256 * 1024; // 256 KB
+
+export interface RemoteResourceGuardConfig {
+  maxSize: number;
+  allowedOrigins?: string[];
+}
+
+export class RemoteResourceGuard {
+  private config: RemoteResourceGuardConfig;
+
+  constructor(config: RemoteResourceGuardConfig = { maxSize: MAX_SIZE }) {
+    this.config = config;
+  }
+
+  async guard(url: string, data: DatasetCore): Promise<{ allowed: boolean; error?: AppError }> {
+    // 1. Batas ukuran 256 KB
+    const serialized = this.serializeDataset(data);
+    if (serialized.length > this.config.maxSize) {
+      return { allowed: false, error: new AppError('VALIDATION_SIZE', 'Resource exceeds 256 KB limit') };
+    }
+
+    // 2. Parse Turtle (sudah parsed, lanjut ke validasi SHACL)
+    // 3. Validasi SHACL
+    const shapes = await this.loadShapes(url);
+    const validator = new ShaclEngine.Validator(shapes, {
+      factory: new DataFactory(),
+      debug: false,
+      details: true,
+    });
+    const report = await validator.validate({ dataset: data });
+    if (!report.conforms) {
+      return { allowed: false, error: new AppError('VALIDATION_SHACL', 'SHACL validation failed') };
+    }
+
+    // 4. Cek semantik (untuk notifikasi, actor, storage, target, tipe)
+    const semanticError = this.checkSemantics(data, url);
+    if (semanticError) return { allowed: false, error: semanticError };
+
+    // 5. Sanitasi teks
+    this.sanitizeTexts(data);
+
+    return { allowed: true, error: undefined };
+  }
+
+  private serializeDataset(store: DatasetCore): string {
+    // Serialize to Turtle for size check
+    return '';
+  }
+
+  private async loadShapes(url: string): Promise<DatasetCore> {
+    // Load SHACL shapes for the resource type
+    return new DatasetCore();
+  }
+
+  private checkSemantics(data: DatasetCore, url: string): AppError | null {
+    // Cek semantik resource
+    return null;
+  }
+
+  private sanitizeTexts(data: DatasetCore): void {
+    // Sanitasi teks: judul maksimal 100 karakter, komentar maksimal 500 karakter
+  }
+}

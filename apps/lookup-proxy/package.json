@@ -1,0 +1,13 @@
+{
+  "name": "fitpod-lookup-proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "together": "echo placeholder",
+    "dev": "echo dev placeholder"
+  },
+  "dependencies": {
+    "hono": "^4.5.5"
+  },
+  "devDependencies": {}
+}

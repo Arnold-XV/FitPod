@@ -1,0 +1,27 @@
+import type { Result } from './result';
+
+export type EventCallback = (data: unknown) => void;
+export type EventMap = Record<string, EventCallback[]>;
+
+export class EventBus {
+  private handlers: EventMap = {};
+
+  on(event: string, callback: EventCallback): void {
+    if (!this.handlers[event]) {
+      this.handlers[event] = [];
+    }
+    this.handlers[event]!.push(callback);
+  }
+
+  emit(event: string, data: unknown): void {
+    const handlers = this.handlers[event] || [];
+    handlers.forEach((callback) => callback(data));
+  }
+
+  off(event: string, callback: EventCallback): void {
+    if (!this.handlers[event]) return;
+    this.handlers[event] = this.handlers[event].filter((h) => h !== callback);
+  }
+}
+
+export const eventBus: EventBus = new EventBus();

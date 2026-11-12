@@ -1,0 +1,9 @@
+{
+  "name": "fitpod-seed",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "together": "echo placeholder"
+  },
+  "dependencies": {}
+}

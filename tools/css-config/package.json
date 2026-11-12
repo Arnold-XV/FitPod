@@ -1,0 +1,9 @@
+{
+  "name": "fitpod-css-config",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "together": "echo placeholder"
+  },
+  "dependencies": {}
+}

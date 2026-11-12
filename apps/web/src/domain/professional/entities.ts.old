@@ -1,0 +1,42 @@
+import type { Result } from '../../domain/shared/result';
+import type { DatasetCore, DataFactory } from '@rdfjs/types';
+import { N3JSParser } from 'n3';
+
+export interface Prescription {
+  id: string;
+  authorWebId: string;
+  authorRole: 'trainer' | 'dietitian' | 'doctor';
+  type: 'program' | 'mealPlan' | 'note' | 'referralRequest' | 'clinicalNote';
+  title: string;
+  text?: string;
+  item?: string[];
+  daysOfWeek?: number[];
+  validFrom: Date;
+  validUntil?: Date;
+  status: 'active' | 'withdrawn';
+  createdAt: Date;
+}
+
+export interface ClientRecord {
+  ownerWebId: string;
+  storageRoot: string;
+  category: string[];
+  expiresAt: Date;
+  receivedAt: Date;
+}
+
+export const parsePrescription = (store: DatasetCore): Prescription => {
+  const parser = new N3JSParser();
+  const prescription: Prescription = {
+    id: '',
+    authorWebId: '',
+    authorRole: 'trainer',
+    type: 'program',
+    title: '',
+    validFrom: new Date(),
+    validUntil: undefined,
+    status: 'active',
+    createdAt: new Date(),
+  };
+  return prescription;
+};

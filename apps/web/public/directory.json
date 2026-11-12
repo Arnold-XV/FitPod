@@ -1,0 +1,8 @@
+{
+  "title": "FitPod",
+  "description": "Decentralized fitness tracking application",
+  "baseUrl": "__BASE_URL__",
+  "version": "1.0.0",
+  "vocab": "__VOCAB_URL__",
+  "shapes": "__SHAPES_URL__"
+}

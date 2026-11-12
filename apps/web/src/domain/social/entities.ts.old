@@ -1,0 +1,65 @@
+import type { Result } from '../../domain/shared/result';
+import type { DatasetCore, DataFactory } from '@rdfjs/types';
+import { N3JSParser } from 'n3';
+
+export interface SharedActivity {
+  id: string;
+  authorWebId: string;
+  date: Date;
+  title: string;
+  durationMin: number;
+  totalVolumeKg: number;
+  exerciseName: string[];
+  visibility: 'friends' | 'public';
+}
+
+export interface Connection {
+  id: string;
+  peerWebId: string;
+  status: 'pending' | 'accepted' | 'blocked';
+  direction: 'outgoing' | 'incoming';
+  since: Date;
+}
+
+export interface Interaction {
+  id: string;
+  rdfType: 'as:Like' | 'as:Note';
+  actor: string;
+  object: string;
+  text?: string;
+  createdAt: Date;
+}
+
+export interface Counter {
+  postRef: string;
+  likeCount: number;
+  commentCount: number;
+  updatedAt: Date;
+}
+
+export const parseSharedActivity = (store: DatasetCore): SharedActivity => {
+  const parser = new N3JSParser();
+  const activity: SharedActivity = {
+    id: '',
+    authorWebId: '',
+    date: new Date(),
+    title: '',
+    durationMin: 0,
+    totalVolumeKg: 0,
+    exerciseName: [],
+    visibility: 'friends',
+  };
+  return activity;
+};
+
+export const parseConnection = (store: DatasetCore): Connection => {
+  const parser = new N3JSParser();
+  const connection: Connection = {
+    id: '',
+    peerWebId: '',
+    status: 'pending',
+    direction: 'outgoing',
+    since: new Date(),
+  };
+  return connection;
+};

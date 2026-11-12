@@ -1,0 +1,49 @@
+import type { Result } from '../../domain/shared/result';
+import type { DatasetCore, DataFactory } from '@rdfjs/types';
+import { N3JSParser } from 'n3';
+
+export interface WorkoutSession {
+  id: string;
+  date: Date;
+  startTime: Date;
+  endTime: Date;
+  routineRef?: string;
+  exerciseBlocks: ExerciseBlock[];
+  note?: string;
+  estKcalBurned?: number;
+}
+
+export interface ExerciseBlock {
+  position: number;
+  exerciseName: string;
+  exerciseRef?: {
+    source: 'free-exercise-db' | 'wger' | 'custom';
+    id: string;
+  };
+  sets: SetLog[];
+}
+
+export interface SetLog {
+  setIndex: number;
+  weightKg: number;
+  reps: number;
+  restSec?: number;
+  rpe?: number;
+}
+
+export const parseWorkoutSession = (store: DatasetCore): WorkoutSession => {
+  const parser = new N3JSParser();
+  const session: WorkoutSession = {
+    id: '',
+    date: new Date(),
+    startTime: new Date(),
+    endTime: new Date(),
+    exerciseBlocks: [],
+  };
+  return session;
+};
+
+export const serializeWorkoutSession = (s: WorkoutSession): string => {
+  // Serialize to Turtle
+  return '';
+};

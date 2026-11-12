@@ -1,0 +1,73 @@
+import type { Result } from '../../domain/shared/result';
+import type { DatasetCore, DataFactory } from '@rdfjs/types';
+import { N3JSParser } from 'n3';
+
+export interface ScreeningRecord {
+  date: Date;
+  formVersion: string;
+  answer: { questionId: string; value: boolean }[];
+  anyYes: boolean;
+  result: 'clear' | 'clearanceRecommended';
+  provenance: { trustLevel: 'self'; provWasAttributedTo: string };
+}
+
+export interface MedicalClearance {
+  id: string;
+  issuerWebId: string;
+  issuerRole: 'doctor' | 'physiotherapist';
+  issuedAt: Date;
+  validUntil: Date;
+  maxIntensity: 'light' | 'moderate' | 'vigorous';
+  restriction?: string[];
+  status: 'active' | 'revoked';
+  provenance: { trustLevel: 'clinician'; provWasAttributedTo: string; attestedBy?: string; attestedAt?: Date; simulated: boolean };
+}
+
+export interface Injury {
+  id: string;
+  bodyPart: string;
+  status: 'active' | 'recovered';
+  since: Date;
+  restriction?: string[];
+  provenance: { trustLevel: 'self' | 'measured'; provWasAttributedTo: string };
+}
+
+export const parseScreeningRecord = (store: DatasetCore, date: Date): ScreeningRecord => {
+  const parser = new N3JSParser();
+  const record: ScreeningRecord = {
+    date,
+    formVersion: '',
+    answer: [],
+    anyYes: false,
+    result: 'clear',
+    provenance: { trustLevel: 'self', provWasAttributedTo: '' },
+  };
+  return record;
+};
+
+export const parseMedicalClearance = (store: DatasetCore): MedicalClearance => {
+  const parser = new N3JSParser();
+  const clearance: MedicalClearance = {
+    id: '',
+    issuerWebId: '',
+    issuerRole: 'doctor',
+    issuedAt: new Date(),
+    validUntil: new Date(),
+    maxIntensity: 'moderate',
+    status: 'active',
+    provenance: { trustLevel: 'clinician', provWasAttributedTo: '', simulated: false },
+  };
+  return clearance;
+};
+
+export const parseInjury = (store: DatasetCore): Injury => {
+  const parser = new N3JSParser();
+  const injury: Injury = {
+    id: '',
+    bodyPart: '',
+    status: 'active',
+    since: new Date(),
+    provenance: { trustLevel: 'self', provWasAttributedTo: '' },
+  };
+  return injury;
+};

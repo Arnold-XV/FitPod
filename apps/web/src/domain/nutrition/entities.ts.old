@@ -1,0 +1,33 @@
+import type { Result } from '../../domain/shared/result';
+import type { DatasetCore, DataFactory } from '@rdfjs/types';
+import { N3JSParser } from 'n3';
+
+export interface NutritionDay {
+  date: Date;
+  entries: NutritionEntry[];
+}
+
+export interface NutritionEntry {
+  datetime: Date;
+  meal: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  foodName: string;
+  source: 'usda' | 'off' | 'tkpi' | 'custom';
+  sourceId?: string;
+  quantityG: number;
+  kcal: number;
+  proteinG: number;
+  carbG: number;
+  fatG: number;
+}
+
+export const parseNutritionDay = (store: DatasetCore, date: Date): NutritionDay => {
+  const parser = new N3JSParser();
+  const day: NutritionDay = { date, entries: [] };
+  // Parse nutrition entries
+  return day;
+};
+
+export const serializeNutritionDay = (d: NutritionDay): string => {
+  // Serialize to Turtle
+  return '';
+};

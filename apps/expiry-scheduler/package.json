@@ -1,0 +1,13 @@
+{
+  "name": "fitpod-expiry-scheduler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "together": "echo placeholder",
+    "dev": "echo dev placeholder"
+  },
+  "dependencies": {
+    "@inrupt/solid-client-authn-node": "^1.12.1"
+  },
+  "devDependencies": {}
+}

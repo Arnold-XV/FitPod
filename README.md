@@ -6,18 +6,30 @@ Decentralized fitness tracking platform built on [Solid Pods](https://solidproje
 
 ## Table of contents
 
-- [Features](#features)
-- [Tech stack](#tech-stack)
-- [Repository structure](#repository-structure)
-- [Getting started](#getting-started)
-- [Available scripts](#available-scripts)
-- [Configuration](#configuration)
-- [Architecture](#architecture)
-- [Data model](#data-model)
-- [Testing](#testing)
-- [Known limitations](#known-limitations)
-- [Contributing](#contributing)
-- [License](#license)
+- [FitPod](#fitpod)
+  - [Table of contents](#table-of-contents)
+  - [Features](#features)
+  - [Tech stack](#tech-stack)
+  - [Repository structure](#repository-structure)
+  - [Getting started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Run web application](#run-web-application)
+    - [Local Solid Pod server](#local-solid-pod-server)
+    - [Seed test data](#seed-test-data)
+  - [Available scripts](#available-scripts)
+    - [Root workspace](#root-workspace)
+    - [Web application workspace](#web-application-workspace)
+  - [Configuration](#configuration)
+    - [Client ID document](#client-id-document)
+    - [OIDC issuer](#oidc-issuer)
+  - [Architecture](#architecture)
+    - [Architecture principles](#architecture-principles)
+  - [Data model](#data-model)
+  - [Testing](#testing)
+  - [Known limitations](#known-limitations)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Features
 
@@ -117,10 +129,15 @@ npm run dev
 Application starts at <http://localhost:5173>.
 
 Current UI provides:
-1. Solid-OIDC login (solidcommunity.net, login.inrupt.com, or local issuer)
+1. Solid-OIDC login with solidcommunity.net (functional)
 2. WebID document verification
-3. Body measurement creation
+3. Body measurement creation and storage to authenticated user's Pod
 4. Measurement listing from Pod
+
+**Authentication status:**
+- **solidcommunity.net** — fully functional
+- **login.inrupt.com** — not working yet
+- **Local CSS** — not working yet
 
 **Client ID configuration:** `apps/web/public/client-id.jsonld` must match app origin. Default configured for `http://localhost:5173`.
 

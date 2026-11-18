@@ -1,10 +1,8 @@
 # FitPod
 
-FitPod is a decentralized fitness tracking platform built on [Solid Pods](https://solidproject.org/). Health and fitness data is stored as RDF in each user's own Pod, giving users ownership and control of their data instead of relying on a central database.
+Decentralized fitness tracking platform built on [Solid Pods](https://solidproject.org/). Stores health and fitness data as RDF in user's own Pod, providing data ownership and control without central database dependency.
 
-This repository is an early-stage reference implementation of the FitPod architecture. The body-measurement flow is implemented end to end; the remaining domain modules are scaffolded for future work.
-
-> **Status:** Experimental MVP. Not production-ready. See [Known limitations](#known-limitations) before deploying.
+**Status:** In development. Core body measurement flow functional. Other domain modules scaffolded. Not production-ready.
 
 ## Table of contents
 
@@ -17,80 +15,83 @@ This repository is an early-stage reference implementation of the FitPod archite
 - [Architecture](#architecture)
 - [Data model](#data-model)
 - [Testing](#testing)
-- [Documentation](#documentation)
 - [Known limitations](#known-limitations)
-- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## Features
 
-- **Solid-OIDC authentication** with DPoP tokens, Client ID Document support, and session restoration.
-- **Pod-native storage** using Turtle/RDF, conditional writes (`If-None-Match`, `If-Match`), and `yyyy/mm` container sharding.
-- **Body measurements** with create, read, update, delete, domain validation, and BMI calculation.
-- **Layered architecture** (L1–L5) with a dependency-injection composition root and explicit port/adapter boundaries.
-- **Typed error handling** through a `Result<T>` type and structured application errors.
-- **Shared RDF packages** for the FitPod vocabulary and SHACL shapes.
-- **Domain modules** for body, nutrition, workout, health, access, professional, and social concerns.
-- **Unit tests** with Vitest, plus English and Indonesian i18n resources.
+- **Solid-OIDC authentication** with DPoP tokens, Client ID Document support, session restoration
+- **Pod-native RDF storage** using Turtle format, conditional writes (`If-None-Match`, `If-Match`), `yyyy/mm` container sharding
+- **Body measurements** with full CRUD operations, domain validation, BMI calculation
+- **Layered architecture** (L1–L5) with dependency injection, explicit port/adapter boundaries
+- **Typed error handling** via `Result<T>` type and structured application errors
+- **Shared RDF packages** for FitPod vocabulary and SHACL shapes
+- **Domain modules** for body, nutrition, workout, health, access, professional, social concerns
+- **Unit and integration tests** with Vitest
+- **Internationalization** (English, Indonesian)
 
 ## Tech stack
 
 | Area | Technology |
 | --- | --- |
 | Language | TypeScript 5.6 (strict mode) |
-| UI | React 18, React Router |
-| Build tool | Vite 5 |
+| UI | React 18, React Router 7, Tailwind CSS 4 |
+| Build tool | Vite 6 |
 | Testing | Vitest |
 | RDF | N3.js, RDF/JS types |
-| Solid | `@inrupt/solid-client-authn-browser`, Solid-OIDC |
-| Package management | npm workspaces (`package-lock.json`) |
+| Solid | `@inrupt/solid-client-authn-browser` |
+| Storage | IndexedDB (idb) |
+| Package management | npm workspaces |
+| Local development | Community Solid Server, Docker Compose |
 
 ## Repository structure
 
 ```text
 FitPod/
-|-- apps/
-|   |-- web/                  React SPA and the current end-to-end implementation
-|   |-- expiry-scheduler/     Placeholder workspace for access-grant expiry jobs
-|   `-- lookup-proxy/         Placeholder workspace for external lookup proxying
-|-- packages/
-|   |-- vocab/                FitPod RDF namespaces and IRI helpers
-|   `-- shapes/               SHACL shapes and owner ACL template
-|-- tests/
-|   `-- unit/domain/          Domain unit tests
-|-- tools/
-|   |-- css-config/           Local Community Solid Server configuration
-|   `-- seed/                 Pod seeding workspace
-|-- docs/                     Architecture notes and ADR workspace
-|-- personal/                 Internal PRD/SRS/SAD documents (git-ignored)
-|-- package.json              Root workspace configuration
-|-- tsconfig.json             Shared TypeScript configuration
-`-- vitest.config.ts          Root test configuration
+├── apps/
+│   ├── web/                  React SPA - main application
+│   ├── expiry-scheduler/     Placeholder for access-grant expiry jobs
+│   └── lookup-proxy/         Placeholder for external lookup proxying
+├── packages/
+│   ├── vocab/                FitPod RDF namespaces and IRI helpers
+│   └── shapes/               SHACL shapes and ACL templates
+├── tests/
+│   ├── unit/                 Domain unit tests
+│   └── integration/          Integration test suite
+├── tools/
+│   ├── solid-pod/            Local Community Solid Server setup
+│   └── seed/                 Pod seeding utilities
+├── solid-script/             Solid-related automation scripts
+├── docker-compose.yml        Container orchestration config
+├── package.json              Root workspace configuration
+├── pnpm-workspace.yaml       Workspace definition
+├── tsconfig.json             Shared TypeScript configuration
+└── vitest.config.ts          Test configuration
 ```
 
-The web application follows the layered structure below:
+Web application structure (layered architecture):
 
 ```text
 apps/web/src/
-├── presentation/             L1 — React pages and UI
-├── application/              L2 — Use cases
+├── presentation/             L1 — React components, pages, UI
+├── application/              L2 — Use cases, application logic
 ├── domain/                   L3 — Entities, validators, ports (pure)
 ├── data/                     L4 — Repositories, RDF mapping, Solid I/O
 ├── infrastructure/           L5 — Auth, HTTP, clock, logging, ID generation
-└── app/                      Composition root and DI container
+└── app/                      Composition root, DI container
 ```
 
 ## Getting started
 
 ### Prerequisites
 
-- Node.js **18 or newer** (Node.js 20 LTS recommended)
-- npm **9 or newer**
-- A Solid Pod account, or a local Community Solid Server instance
+- Node.js ≥18 (Node.js 20 LTS recommended)
+- npm ≥9
 - Git
+- Solid Pod account or local Community Solid Server
 
-### Install
+### Installation
 
 ```bash
 git clone https://github.com/Arnold-XV/FitPod.git
@@ -98,119 +99,125 @@ cd FitPod
 npm install
 ```
 
-### Run the web app
+### Run web application
 
-**Option 1: Run from workspace (recommended)**
+Root-level convenience script:
 
-From the repository root:
+```bash
+npm run dev
+```
+
+Or run from web workspace:
 
 ```bash
 cd apps/web
 npm run dev
 ```
 
-**Option 2: Run with workspace flag**
+Application starts at <http://localhost:5173>.
 
-```bash
-npm run dev --workspace apps/web
-```
+Current UI provides:
+1. Solid-OIDC login (solidcommunity.net, login.inrupt.com, or local issuer)
+2. WebID document verification
+3. Body measurement creation
+4. Measurement listing from Pod
 
-Open <http://localhost:5173>.
+**Client ID configuration:** `apps/web/public/client-id.jsonld` must match app origin. Default configured for `http://localhost:5173`.
 
-The current UI is a backend-testing interface. It lets you:
+### Local Solid Pod server
 
-1. Log in with a Solid-OIDC issuer such as `https://solidcommunity.net` or `https://login.inrupt.com`.
-2. Read the WebID document to verify Pod connectivity.
-3. Add a body measurement.
-4. List measurements stored in the Pod.
-
-**Note:** The client ID document at `apps/web/public/client-id.jsonld` must match your app origin. For local development, it is already configured for `http://localhost:5173`.
-
-### Optional: local Solid Pod
-
-Run a [Community Solid Server](https://github.com/CommunitySolidServer/CommunitySolidServer) on port `3001`, then use `http://localhost:3001/` as the OIDC issuer. Local Pod data is written under `.data/`, which is git-ignored.
+Start [Community Solid Server](https://github.com/CommunitySolidServer/CommunitySolidServer) on port 3001:
 
 ```bash
 npm run pod:start
 ```
 
-**Known Issue:** CSS fails on Windows when the project path contains spaces (e.g., `E:\Study\UGM\...\Platform Based Software Engineering\...`). Workarounds:
+Use `http://localhost:3001/` as OIDC issuer. Pod data stored in `.data/` (git-ignored).
 
-- Move project to path without spaces (e.g., `C:\Projects\FitPod`)
-- Run CSS manually from different directory: `cd C:\temp && npx @solid/community-server -p 3001`
-- Use online Pod providers (solidcommunity.net, login.inrupt.com) instead
+**Windows path limitation:** CSS fails when project path contains spaces. Solutions:
+- Move project to path without spaces (`C:\Projects\FitPod`)
+- Run CSS from different directory: `cd C:\temp && npx @solid/community-server -p 3001`
+- Use online Pod providers instead
 
-### Seed Pod with test data
+### Seed test data
 
-To populate your Pod with test body measurements for development:
+Populate Pod with test body measurements:
 
-1. Start the Community Solid Server: `npm run pod:start`
-2. Create an account at <http://localhost:3001/>
+1. Start local server: `npm run pod:start`
+2. Create account at <http://localhost:3001/>
 3. Generate client credentials at <http://localhost:3001/.account/>
-4. Copy `.env.example` to `.env.local` and fill in your credentials:
+4. Create `.env.local` from `.env.example`:
    ```bash
-   SOLID_CLIENT_ID=your-client-id-here
-   SOLID_CLIENT_SECRET=your-client-secret-here
+   SOLID_CLIENT_ID=your-client-id
+   SOLID_CLIENT_SECRET=your-client-secret
    SOLID_OIDC_ISSUER=http://localhost:3001
    ```
-5. Run the seed script:
+5. Seed Pod:
    ```bash
    npm run seed
    ```
 
-To clear test data:
+Clear test data:
 ```bash
 npm run seed:clear
 ```
 
 ## Available scripts
 
-Run workspace commands from the repository root.
+Run from repository root.
 
 ### Root workspace
 
 | Command | Description |
 | --- | --- |
-| `npm run typecheck` | Type-check the repository with the shared TypeScript config |
-| `npm test` | Run the Vitest suite once |
-| `npm run test:unit` | Run unit tests under `tests/unit` |
-| `npm run test:watch` | Run Vitest in watch mode |
+| `npm run dev` | Start web app development server |
+| `npm run build` | Build web app for production |
+| `npm run preview` | Preview production build |
+| `npm run typecheck` | Type-check entire repository |
+| `npm test` | Run all tests |
+| `npm run test:unit` | Run unit tests only |
+| `npm run test:integration` | Run integration tests |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run pod:start` | Start local Community Solid Server |
+| `npm run seed` | Seed Pod with test data |
+| `npm run seed:clear` | Clear test data from Pod |
 
-### Web application
+### Web application workspace
+
+Run with `-w` flag or from `apps/web` directory:
 
 | Command | Description |
 | --- | --- |
-| `npm run dev --workspace apps/web` | Start the Vite development server |
-| `npm run build --workspace apps/web` | Type-check and build for production |
-| `npm run preview --workspace apps/web` | Preview the production build |
-| `npm run lint --workspace apps/web` | Run ESLint for the web app |
-| `npm run typecheck --workspace apps/web` | Type-check the web app |
-
-> Root convenience scripts for `dev`, `build`, and `preview` are still being aligned with the workspace package names. Use the workspace-qualified commands above.
+| `npm run dev -w fitpod-web` | Start Vite dev server |
+| `npm run build -w fitpod-web` | Type-check and build |
+| `npm run preview -w fitpod-web` | Preview production build |
+| `npm run lint -w fitpod-web` | Run ESLint |
+| `npm run typecheck -w fitpod-web` | Type-check web app |
+| `npm test -w fitpod-web` | Run web app tests |
 
 ## Configuration
 
-### Solid Client ID document
+### Client ID document
 
-The web app loads its Client ID document from `/client-id.jsonld`. This file is generated per environment from `apps/web/public/client-id.template.json` and is git-ignored.
+Web app loads Client ID document from `/client-id.jsonld`. Generate from `apps/web/public/client-id.template.json` (git-ignored after generation).
 
-For local development, create `apps/web/public/client-id.jsonld` from the template and:
+Local development setup:
+1. Copy template to `apps/web/public/client-id.jsonld`
+2. Replace `__ORIGIN__` with app origin (`http://localhost:5173`)
+3. Set `redirect_uris` to post-login URL (`["http://localhost:5173/"]`)
+4. Ensure `client_id` equals `<origin>/client-id.jsonld`
 
-- Replace `__ORIGIN__` with your app origin, for example `http://localhost:5173`.
-- Set `redirect_uris` to the URL used after login, for example `["http://localhost:5173/"]`.
-- Keep the `client_id` value equal to `<origin>/client-id.jsonld`.
-
-The document must be served with `Content-Type: application/ld+json` and permissive CORS headers. The production headers are defined in `apps/web/public/_headers`.
+Document requires `Content-Type: application/ld+json` and permissive CORS headers. Production headers defined in `apps/web/public/_headers`.
 
 ### OIDC issuer
 
-The default issuer in the testing UI is `https://solidcommunity.net`. You can enter another provider, including a local Community Solid Server, before logging in.
+Default issuer: `https://solidcommunity.net`. Alternative providers (including local Community Solid Server) configurable via UI before login.
 
-No runtime environment variables are required by the current web application. Environment files (`.env`, `.env.*`) are git-ignored.
+Environment files (`.env`, `.env.*`) git-ignored. No runtime environment variables required for web application.
 
 ## Architecture
 
-FitPod uses a five-layer architecture with dependencies pointing inward:
+Five-layer architecture with inward-pointing dependencies:
 
 ```text
 L1 Presentation  →  L2 Application  →  L3 Domain
@@ -219,76 +226,94 @@ L4 Data  ───────────────────────�
 L5 Infrastructure  ── implements ports consumed by L2/L4
 ```
 
-The composition root at `apps/web/src/app/container.ts` wires concrete implementations into use cases.
+Composition root (`apps/web/src/app/container.ts`) wires concrete implementations to use cases.
 
-Key rules enforced by the design and ESLint configuration:
+### Architecture principles
 
-- **L3 is pure.** Domain code has no I/O, no `fetch`, no `Date.now()`, and no `crypto.randomUUID()`; it depends on `Clock` and `IdGenerator` ports instead.
-- **Ports live in L3, adapters live in L4/L5.** Repositories and infrastructure implement interfaces declared by the domain.
-- **RDF and Solid libraries are restricted.** Only L4 data code and L5 authentication code may import `n3`, `@rdfjs/*`, or `@inrupt/*`.
-- **HTTP is centralized.** Only `infrastructure/http` calls `fetch`; other layers use the `PodHttp` abstraction.
-- **Errors are values.** Cross-layer failures use `Result<T>` with typed `AppError` values instead of thrown HTTP errors.
+**L3 Domain purity**  
+No I/O operations, no `fetch`, no `Date.now()`, no `crypto.randomUUID()`. Dependencies on `Clock` and `IdGenerator` ports.
+
+**Port/Adapter pattern**  
+Ports defined in L3 (domain). Adapters implemented in L4 (data) and L5 (infrastructure).
+
+**RDF library isolation**  
+Only L4 data layer and L5 auth code import `n3`, `@rdfjs/*`, `@inrupt/*`.
+
+**Centralized HTTP**  
+Only `infrastructure/http` calls `fetch`. Other layers use `PodHttp` abstraction.
+
+**Error handling**  
+Cross-layer failures use `Result<T>` with typed `AppError` values. No thrown HTTP errors.
 
 ## Data model
 
-- FitPod resources use the `fp:` namespace: `https://w3id.org/fitpod/ns#`.
-- Every primary subject carries an `fp:schemaVersion` value.
-- Resources are serialized as Turtle and written with conditional requests to prevent lost updates.
-- Body measurements are stored under `fitpod/body/yyyy/mm/<id>.ttl` to keep containers small.
-- Provenance is represented with a trust level (`self`, `measured`, `clinician`) and an attributed WebID.
-- SHACL shapes are maintained in `packages/shapes`; the FitPod vocabulary is maintained in `packages/vocab`.
+**Namespace:** `fp:` → `https://w3id.org/fitpod/ns#`
+
+**Schema versioning:** Every primary subject includes `fp:schemaVersion`
+
+**Serialization:** Turtle format with conditional requests (`If-None-Match`, `If-Match`) prevents lost updates
+
+**Storage structure:** Body measurements at `fitpod/body/yyyy/mm/<id>.ttl` for container size management
+
+**Provenance tracking:**
+- Trust levels: `self`, `measured`, `clinician`
+- Attributed WebID for data source
+
+**Vocabulary management:**
+- SHACL shapes: `packages/shapes`
+- FitPod vocabulary: `packages/vocab`
 
 ## Testing
 
+Run tests:
 ```bash
-# Run all configured tests once
-npm test
-
-# Run only domain unit tests
-npm run test:unit
-
-# Watch mode
-npm run test:watch
+npm test                 # All tests
+npm run test:unit        # Unit tests only
+npm run test:integration # Integration tests
+npm run test:watch       # Watch mode
 ```
 
-The current automated suite focuses on pure domain logic under `tests/unit/domain` and `apps/web/src/domain`. Manual Pod integration scenarios are documented in [`apps/web/TESTING.md`](apps/web/TESTING.md) and [`apps/web/TEST_PLAN.md`](apps/web/TEST_PLAN.md). Automated integration tests against a Community Solid Server are planned but not yet implemented.
+**Test coverage:**
+- Unit tests for domain logic: `tests/unit/`, `apps/web/src/domain`
+- Integration tests: `tests/integration/`
+- Manual Pod integration scenarios documented in `apps/web/TESTING.md` and `apps/web/TEST_PLAN.md`
 
-## Documentation
-
-| Document | Purpose |
-| --- | --- |
-| [`apps/web/README.md`](apps/web/README.md) | Web application overview and manual test workflow |
-| [`apps/web/ARCHITECTURE_EVALUATION.md`](apps/web/ARCHITECTURE_EVALUATION.md) | Architecture compliance evaluation |
-| [`apps/web/TESTING.md`](apps/web/TESTING.md) | Testing approach and procedures |
-| [`apps/web/TEST_PLAN.md`](apps/web/TEST_PLAN.md) | Detailed test scenarios |
-| [`packages/vocab/src/index.ts`](packages/vocab/src/index.ts) | RDF namespaces and vocabulary helpers |
-| [`packages/shapes/src/index.ts`](packages/shapes/src/index.ts) | SHACL shapes and ACL template |
-
-Internal product and architecture specifications are kept in `personal/`, which is intentionally excluded from version control.
+Integration tests against live/local Solid Pod in active development.
 
 ## Known limitations
 
-- SHACL validation is defined but not fully enforced before every write.
-- ACL bootstrap and privacy probes are not implemented.
-- Only body measurements are wired end to end; nutrition, workout, health, access, professional, and social modules are domain scaffolding.
-- Measurement listing is limited to the current month.
-- The storage root is derived from the WebID host rather than discovered through `pim:storage`.
-- Offline caching and a retry/backoff strategy are not implemented.
-- Integration tests against a real or local Solid Pod are not automated yet.
-- Some workspace scripts and applications are placeholders.
-- The workspace is mid-refactor; `typecheck` and some scripts may report pre-existing errors until cleanup is complete.
+**Data operations:**
+- SHACL validation defined but not enforced before writes
+- ACL bootstrap and privacy probes missing
+- Only body measurements fully implemented; other modules scaffolded
+- Measurement listing limited to current month
+- Storage root derived from WebID host, not discovered via `pim:storage`
+
+**Infrastructure:**
+- No offline caching
+- No retry/backoff strategy
+- Automated Pod integration tests incomplete
+
+**Development:**
+- Some workspace scripts are placeholders
+- Mid-refactor state may show pre-existing type errors
 
 ## Contributing
 
-1. Create a branch from `main`.
-2. Install dependencies with `npm install`.
-3. Keep changes inside the existing layer boundaries and follow the port/adapter pattern.
-4. Add or update tests for behavioral changes.
-5. Run `npm run typecheck` and `npm test` before opening a pull request.
-6. Describe the motivation, scope, and verification steps in the pull request.
+**Workflow:**
+1. Branch from `main`
+2. Install: `npm install`
+3. Maintain layer boundaries and port/adapter pattern
+4. Add/update tests for behavioral changes
+5. Verify: `npm run typecheck && npm test`
+6. PR must describe motivation, scope, verification steps
 
-Do not commit Pod credentials, access tokens, environment files, local Pod data, or contents of `personal/`.
+**Do not commit:**
+- Pod credentials
+- Access tokens
+- Environment files
+- Local Pod data (`.data/`)
 
 ## License
 
-No license has been declared for this repository yet. Add a `LICENSE` file before distributing or accepting external contributions.
+No license declared. Add `LICENSE` file before external distribution or contributions.

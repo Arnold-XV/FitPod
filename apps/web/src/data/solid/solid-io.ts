@@ -15,10 +15,15 @@ export interface SolidIo {
   putNew(url: string, store: Store): Promise<Result<void>>;
   putReplace(url: string, store: Store, etag: string): Promise<Result<void>>;
   deleteResource(url: string): Promise<Result<void>>;
+  getHttp(): PodHttp;
 }
 
 class SolidIoImpl implements SolidIo {
   constructor(private http: PodHttp) {}
+
+  getHttp(): PodHttp {
+    return this.http;
+  }
 
   async readTurtle(url: string): Promise<Result<{ store: Store; etag: string | null }>> {
     try {

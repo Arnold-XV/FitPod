@@ -46,17 +46,19 @@ class SolidAuthSession implements AuthSession {
   }
 
   async login(oidcIssuer: string): Promise<void> {
-    const clientId = window.location.origin + '/client-id.jsonld';
-    const redirectUrl = window.location.href;
+    // Use static redirect URL as recommended by Inrupt documentation
+    // Avoid dynamic URLs that change with routes or query parameters
+    const redirectUrl = new URL('/', window.location.href).toString();
 
-    console.log('[Auth] Logging in with:', { oidcIssuer, clientId, redirectUrl });
+    console.log('[Auth] Logging in with:', { oidcIssuer, redirectUrl });
 
+    // For localhost development, omit clientId to use dynamic client registration
+    // This avoids the issue where OIDC providers cannot fetch localhost client documents
     await solidLogin({
       oidcIssuer,
       redirectUrl,
-      clientId,
-      clientName: 'FitPod Test Client',
-      tokenType: 'DPoP', // SAD 4.3: DPoP tokens
+      clientName: 'FitPod Local Development',
+      tokenType: 'DPoP',
     });
   }
 

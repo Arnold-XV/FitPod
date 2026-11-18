@@ -17,25 +17,25 @@ export const grantAccess = async (
   }
 ) => async (action: GrantAccessInput): Promise<Result<void>> => {
   try {
-    // 1. Dereferensi WebID peminta
+    // 1. Resolve grantee WebID
     const grantee = await input.discovery.resolveWebId(input.granteeWebId);
     if (!grantee) {
       return { ok: false, error: new Error('Grantee WebID not found') };
     }
 
-    // 2. Peta kategori ke ACL
+    // 2. Map categories to ACL rules
     const aclChanges = input.acl.mapCategoriesToAcl(input.category);
 
-    // 3. Tulis ACL ke resource
+    // 3. Write ACL to resource
     await input.acl.writeAcl(`fitpod/social/shared/friends/`, aclChanges);
 
-    // 4. Read-back verifikasi
+    // 4. Verify ACL write operation
     const readBack = await input.acl.readBack(`fitpod/social/shared/friends/`);
     if (!readBack) {
       return { ok: false, error: new Error('ACL read-back failed') };
     }
 
-    // 5. Catat grant
+    // 5. Record grant in repository
     const grant = await input.grants.create({
       granteeWebId: input.granteeWebId,
       role: input.role,
@@ -44,10 +44,10 @@ export const grantAccess = async (
       expiresAt: new Date(input.clock.now().getTime() + 365 * 24 * 60 * 60 * 1000),
     });
 
-    // 6. POST undangan ke inbox
+    // 6. Send grant invitation to grantee inbox
     await input.inbox.postGrantInvitation(grantee.inboxUrl, grant);
 
-    // 7. Emit event
+    // 7. Publish grant creation event
     input.events.emit('GrantCreated', { grant });
 
     return { ok: true, value: undefined };

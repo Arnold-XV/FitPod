@@ -61,7 +61,7 @@ export const validateBodyMeasurement = (
 
 /**
  * BMI Calculator (L3 pure function)
- * FR-BODY-03: BMI tidak disimpan, dihitung saat ditampilkan
+ * FR-BODY-03: BMI is not stored, calculated on display
  */
 export const calculateBMI = (weightKg: number, heightCm: number): number => {
   const heightM = heightCm / 100;

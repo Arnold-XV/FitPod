@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  solid:
+    image: node:20-alpine
+    container_name: fitpod-solid
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/home/node/.solid
+    working_dir: /home/node
+    command: >
+      sh -c "npm init -y &&
+             npm install @solid/communityserver --save-dev &&
+             npx communityserver -p 3001 -d .solid -w true"
+
+volumes:
+  solid-data:

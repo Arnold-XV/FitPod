@@ -10,7 +10,7 @@ import { calculateBMI } from '@/domain/body/entities';
 
 export const TestPage = () => {
   const [webId, setWebId] = useState<string | null>(null);
-  const [oidcIssuer, setOidcIssuer] = useState('https://solidcommunity.net');
+  const [oidcIssuer, setOidcIssuer] = useState('http://localhost:3001');
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [testResults, setTestResults] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,12 +22,21 @@ export const TestPage = () => {
   useEffect(() => {
     // Restore session on mount
     const restoreSession = async () => {
-      const result = await container.authSession.restore();
-      if (result) {
-        setWebId(result.webId);
-        addTestResult(`✓ Session restored: ${result.webId}`);
-      } else {
-        addTestResult('ℹ No existing session');
+      try {
+        const result = await container.authSession.restore();
+        if (result) {
+          setWebId(result.webId);
+          addTestResult(`Session restored: ${result.webId}`);
+          // Initialize storage root
+          const repo = await container.getBodyRepository();
+          // Force storage root discovery
+          await repo.ensureStorageRoot();
+          console.log(`Storage root: ${repo.getStorageRoot()}`);
+        } else {
+          addTestResult('No existing session');
+        }
+      } catch (error) {
+        addTestResult(`Error restoring session: ${error instanceof Error ? error.message : String(error)}`);
       }
     };
     restoreSession();
@@ -41,9 +50,22 @@ export const TestPage = () => {
     try {
       setLoading(true);
       addTestResult(`Initiating login to ${oidcIssuer}...`);
-      await container.loginUseCase(oidcIssuer);
+      const loginUseCase = await container.getLoginUseCase();
+      await loginUseCase(oidcIssuer);
+      // Check if login succeeded
+      const webId = container.authSession.webId;
+      if (webId) {
+        setWebId(webId);
+        addTestResult(`Logged in: ${webId}`);
+        // Initialize storage root
+        const repo = await container.getBodyRepository();
+        await repo.ensureStorageRoot();
+        console.log(`Storage root: ${repo.getStorageRoot()}`);
+      } else {
+        addTestResult('Login page opened - complete login in the popup');
+      }
     } catch (error) {
-      addTestResult(`✗ Login failed: ${error instanceof Error ? error.message : String(error)}`);
+      addTestResult(`Login failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -53,13 +75,13 @@ export const TestPage = () => {
     try {
       setLoading(true);
       addTestResult('Logging out...');
-      await container.logoutUseCase();
+      await container.getLogoutUseCase();
       setWebId(null);
       setMeasurements([]);
-      container.resetRepositories();
-      addTestResult('✓ Logged out successfully');
+      await container.resetRepositories();
+      addTestResult('Logged out successfully');
     } catch (error) {
-      addTestResult(`✗ Logout failed: ${error instanceof Error ? error.message : String(error)}`);
+      addTestResult(`Logout failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -67,7 +89,7 @@ export const TestPage = () => {
 
   const handleAddMeasurement = async () => {
     if (!webId) {
-      addTestResult('✗ Not authenticated');
+      addTestResult('Not authenticated');
       return;
     }
 
@@ -77,20 +99,21 @@ export const TestPage = () => {
       
       addTestResult(`Adding measurement: ${weightKg}kg, ${heightCm}cm...`);
       
-      const result = await container.addMeasurementUseCase({
+      const addUseCase = await container.getAddMeasurementUseCase();
+      const result = await addUseCase({
         date: date ?? '',
         weightKg: parseFloat(weightKg),
         heightCm: parseFloat(heightCm),
       });
 
       if (result.ok) {
-        addTestResult(`✓ Measurement added successfully (ID: ${result.value})`);
+        addTestResult(`Measurement added successfully (ID: ${result.value}`);
         await handleListMeasurements();
       } else {
-        addTestResult(`✗ Failed to add measurement: ${result.error.message}`);
+        addTestResult(`Failed to add measurement: ${result.error.message}`);
       }
     } catch (error) {
-      addTestResult(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
+      addTestResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -98,7 +121,7 @@ export const TestPage = () => {
 
   const handleListMeasurements = async () => {
     if (!webId) {
-      addTestResult('✗ Not authenticated');
+      addTestResult('Not authenticated');
       return;
     }
 
@@ -106,16 +129,17 @@ export const TestPage = () => {
       setLoading(true);
       addTestResult('Fetching measurements from Pod...');
       
-      const result = await container.listMeasurementsUseCase();
+      const listUseCase = await container.getListMeasurementsUseCase();
+      const result = await listUseCase();
 
       if (result.ok) {
         setMeasurements(result.value);
-        addTestResult(`✓ Found ${result.value.length} measurement(s)`);
+        addTestResult(`Found ${result.value.length} measurement(s)`);
       } else {
-        addTestResult(`✗ Failed to list measurements: ${result.error.message}`);
+        addTestResult(`Failed to list measurements: ${result.error.message}`);
       }
     } catch (error) {
-      addTestResult(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
+      addTestResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -123,7 +147,7 @@ export const TestPage = () => {
 
   const testPodConnection = async () => {
     if (!webId) {
-      addTestResult('✗ Not authenticated');
+      addTestResult('Not authenticated');
       return;
     }
 
@@ -138,14 +162,14 @@ export const TestPage = () => {
       const result = await container.solidIo.readTurtle(url);
       
       if (result.ok) {
-        addTestResult(`✓ Successfully read WebID document`);
+        addTestResult(`Successfully read WebID document`);
         addTestResult(`  - Triples count: ${result.value.store.size}`);
         addTestResult(`  - ETag: ${result.value.etag ?? 'none'}`);
       } else {
-        addTestResult(`✗ Failed to read WebID: ${result.error.message}`);
+        addTestResult(`Failed to read WebID: ${result.error.message}`);
       }
     } catch (error) {
-      addTestResult(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
+      addTestResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -163,7 +187,7 @@ export const TestPage = () => {
         <h2>1. Authentication (L5/auth → L2/auth)</h2>
         {webId ? (
           <div>
-            <p style={{ color: 'green' }}>✓ Authenticated</p>
+            <p style={{ color: 'green' }}>Authenticated</p>
             <p><strong>WebID:</strong> {webId}</p>
             <button onClick={handleLogout} disabled={loading}>
               Logout

@@ -73,6 +73,10 @@ export class AppContainer {
         authedFetch: this.authSession.fetch,
         concurrencyLimit: 6,
         timeout: 5000,
+        retryEnabled: true,
+        maxRetries: 3,
+        baseDelay: 100,
+        maxDelay: 2000,
       });
     }
     return this._podHttp;
@@ -85,67 +89,101 @@ export class AppContainer {
     return this._solidIo;
   }
 
-  get bodyRepository(): BodyRepository {
+  /**
+   * Get the body repository, initializing storage root via pim:storage discovery.
+   * AR-19: Storage root discovered from WebID document on first access.
+   */
+  async getBodyRepository(): Promise<BodyRepository> {
     if (!this._bodyRepository) {
-      // Get storage root from WebID
       const webId = this.authSession.webId;
       if (!webId) {
         throw new Error('Not authenticated - cannot create body repository');
       }
 
-      // Extract storage root from WebID
-      // For testing: https://arnold.solidcommunity.net/profile/card#me
-      // Storage root: https://arnold.solidcommunity.net/
-      const url = new URL(webId);
-      const storageRoot = `${url.protocol}//${url.host}/`;
-
       this._bodyRepository = createBodyRepository({
         solidIo: this.solidIo,
-        storageRoot,
+        storageRoot: '', // Will be discovered via pim:storage
       });
+
+      // Set WebID for storage root discovery
+      this._bodyRepository.setWebId(webId);
+
+      // Ensure storage root is discovered before any operations
+      await this._bodyRepository.ensureStorageRoot();
     }
     return this._bodyRepository;
   }
 
-  // Use Cases
-  get loginUseCase() {
-    return createLoginUseCase({
-      authSession: this.authSession,
-      logger: this.logger,
-    });
+  /**
+   * Refresh the body repository (e.g., after logout/login with different WebID)
+   */
+  async refreshBodyRepository(): Promise<BodyRepository> {
+    this._bodyRepository = undefined;
+    this._solidIo = undefined;
+    return this.getBodyRepository();
   }
 
-  get logoutUseCase() {
-    return createLogoutUseCase({
-      authSession: this.authSession,
-      logger: this.logger,
-    });
+  // Use Cases (cached after first access)
+  private _loginUseCase?: ReturnType<typeof createLoginUseCase>;
+  private _logoutUseCase?: ReturnType<typeof createLogoutUseCase>;
+  private _addMeasurementUseCase?: ReturnType<typeof createAddMeasurementUseCase>;
+  private _listMeasurementsUseCase?: ReturnType<typeof createListMeasurementsUseCase>;
+
+  async getLoginUseCase(): Promise<ReturnType<typeof createLoginUseCase>> {
+    if (!this._loginUseCase) {
+      this._loginUseCase = createLoginUseCase({
+        authSession: this.authSession,
+        logger: this.logger,
+      });
+    }
+    return this._loginUseCase;
   }
 
-  get addMeasurementUseCase() {
-    return createAddMeasurementUseCase({
-      bodyRepository: this.bodyRepository,
-      clock: this.clock,
-      idGenerator: this.idGenerator,
-      logger: this.logger,
-    });
+  async getLogoutUseCase(): Promise<ReturnType<typeof createLogoutUseCase>> {
+    if (!this._logoutUseCase) {
+      this._logoutUseCase = createLogoutUseCase({
+        authSession: this.authSession,
+        logger: this.logger,
+      });
+    }
+    return this._logoutUseCase;
   }
 
-  get listMeasurementsUseCase() {
-    return createListMeasurementsUseCase({
-      bodyRepository: this.bodyRepository,
-      logger: this.logger,
-    });
+  async getAddMeasurementUseCase(): Promise<ReturnType<typeof createAddMeasurementUseCase>> {
+    if (!this._addMeasurementUseCase) {
+      const bodyRepository = await this.getBodyRepository();
+      this._addMeasurementUseCase = createAddMeasurementUseCase({
+        bodyRepository,
+        clock: this.clock,
+        idGenerator: this.idGenerator,
+        logger: this.logger,
+      });
+    }
+    return this._addMeasurementUseCase;
+  }
+
+  async getListMeasurementsUseCase(): Promise<ReturnType<typeof createListMeasurementsUseCase>> {
+    if (!this._listMeasurementsUseCase) {
+      const bodyRepository = await this.getBodyRepository();
+      this._listMeasurementsUseCase = createListMeasurementsUseCase({
+        bodyRepository,
+        logger: this.logger,
+      });
+    }
+    return this._listMeasurementsUseCase;
   }
 
   /**
    * Reset repositories when user changes
-   * Called after login/logout
+   * Called after logout
    */
-  resetRepositories(): void {
+  async resetRepositories(): Promise<void> {
     this._bodyRepository = undefined;
     this._solidIo = undefined;
-    this._podHttp = undefined;
+    this._loginUseCase = undefined;
+    this._logoutUseCase = undefined;
+    this._addMeasurementUseCase = undefined;
+    this._listMeasurementsUseCase = undefined;
   }
 }
 

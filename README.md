@@ -100,6 +100,17 @@ npm install
 
 ### Run the web app
 
+**Option 1: Run from workspace (recommended)**
+
+From the repository root:
+
+```bash
+cd apps/web
+npm run dev
+```
+
+**Option 2: Run with workspace flag**
+
 ```bash
 npm run dev --workspace apps/web
 ```
@@ -108,14 +119,49 @@ Open <http://localhost:5173>.
 
 The current UI is a backend-testing interface. It lets you:
 
-1. Log in with a Solid-OIDC issuer such as `https://solidcommunity.net`.
+1. Log in with a Solid-OIDC issuer such as `https://solidcommunity.net` or `https://login.inrupt.com`.
 2. Read the WebID document to verify Pod connectivity.
 3. Add a body measurement.
 4. List measurements stored in the Pod.
 
+**Note:** The client ID document at `apps/web/public/client-id.jsonld` must match your app origin. For local development, it is already configured for `http://localhost:5173`.
+
 ### Optional: local Solid Pod
 
 Run a [Community Solid Server](https://github.com/CommunitySolidServer/CommunitySolidServer) on port `3001`, then use `http://localhost:3001/` as the OIDC issuer. Local Pod data is written under `.data/`, which is git-ignored.
+
+```bash
+npm run pod:start
+```
+
+**Known Issue:** CSS fails on Windows when the project path contains spaces (e.g., `E:\Study\UGM\...\Platform Based Software Engineering\...`). Workarounds:
+
+- Move project to path without spaces (e.g., `C:\Projects\FitPod`)
+- Run CSS manually from different directory: `cd C:\temp && npx @solid/community-server -p 3001`
+- Use online Pod providers (solidcommunity.net, login.inrupt.com) instead
+
+### Seed Pod with test data
+
+To populate your Pod with test body measurements for development:
+
+1. Start the Community Solid Server: `npm run pod:start`
+2. Create an account at <http://localhost:3001/>
+3. Generate client credentials at <http://localhost:3001/.account/>
+4. Copy `.env.example` to `.env.local` and fill in your credentials:
+   ```bash
+   SOLID_CLIENT_ID=your-client-id-here
+   SOLID_CLIENT_SECRET=your-client-secret-here
+   SOLID_OIDC_ISSUER=http://localhost:3001
+   ```
+5. Run the seed script:
+   ```bash
+   npm run seed
+   ```
+
+To clear test data:
+```bash
+npm run seed:clear
+```
 
 ## Available scripts
 

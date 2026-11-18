@@ -1,15 +1,16 @@
 /**
  * Body Repository Implementation (L4)
  * Implements BodyRepository port from L3
- * AR-06: SHACL validation before write (placeholder for now)
+ * AR-06: SHACL validation before write
  */
 
-import { DataFactory, Store } from 'n3';
+import { DataFactory, Parser, Store } from 'n3';
 import type { BodyRepository } from '@/domain/body/ports';
 import type { BodyMeasurement } from '@/domain/body/entities';
 import { validateBodyMeasurement } from '@/domain/body/entities';
 import { appError, failure, success, type Result } from '@/domain/shared/result';
 import type { SolidIo } from '@/data/solid/solid-io';
+import { PIM } from '@fitpod/vocab';
 
 const { namedNode, literal } = DataFactory;
 
@@ -19,20 +20,101 @@ const XSD = 'http://www.w3.org/2001/XMLSchema#';
 
 interface BodyRepositoryConfig {
   solidIo: SolidIo;
-  storageRoot: string;
+  storageRoot?: string; // Optional - will be discovered if not provided
 }
 
 class BodyRepositoryImpl implements BodyRepository {
   private solidIo: SolidIo;
-  private storageRoot: string;
+  private _storageRoot: string = '';
+  private _webId?: string;
+  private _storageRootDiscovered: boolean = false;
 
   constructor(config: BodyRepositoryConfig) {
     this.solidIo = config.solidIo;
-    this.storageRoot = config.storageRoot;
+    if (config.storageRoot && config.storageRoot.length > 0) {
+      this._storageRoot = config.storageRoot;
+      this._storageRootDiscovered = true;
+    }
+  }
+
+  /**
+   * Set WebID for storage root discovery.
+   * Must be called before any repository operations.
+   */
+  setWebId(webId: string): void {
+    this._webId = webId;
+  }
+
+  /**
+   * Discover storage root from WebID document using pim:storage predicate.
+   * Falls back to host-based inference if pim:storage is not present.
+   * AR-19: Storage root discovery via pim:storage
+   */
+  async ensureStorageRoot(): Promise<void> {
+    if (this._storageRootDiscovered || !this._webId) {
+      return;
+    }
+
+    try {
+      // Fetch WebID document using the http from podHttp (authed)
+      const response = await this.solidIo.getHttp().authed(this._webId, {
+        headers: { Accept: 'text/turtle' },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch WebID document: ${response.status}`);
+      }
+
+      const text = await response.text();
+      const parser = new Parser({ baseIRI: this._webId });
+      const store = new Store();
+
+      await new Promise<void>((resolve, reject) => {
+        parser.parse(text, (error: Error | null, quad: any) => {
+          if (error) return reject(error);
+          if (quad) store.addQuad(quad);
+          else resolve();
+        });
+      });
+
+      // Look for pim:storage predicate
+      const webIdNode = namedNode(this._webId);
+      const pimStoragePredicate = namedNode(`${PIM}storage`);
+
+      const storageQuads = store.getQuads(webIdNode as any, pimStoragePredicate as any, null, null);
+
+      if (storageQuads.length > 0) {
+        const storageRoot = storageQuads[0].object.value;
+        console.log(`[Repository] Discovered storage root via pim:storage: ${storageRoot}`);
+        this._storageRoot = storageRoot;
+      } else {
+        // Fallback: derive from WebID host
+        const url = new URL(this._webId);
+        const fallbackStorageRoot = `${url.protocol}//${url.host}/`;
+        console.log(`[Repository] Using fallback storage root from WebID host: ${fallbackStorageRoot}`);
+        this._storageRoot = fallbackStorageRoot;
+      }
+    } catch (error) {
+      console.warn(`[Repository] Failed to discover storage root, using fallback: ${error}`);
+      // Fallback: derive from WebID host
+      if (this._webId) {
+        const url = new URL(this._webId);
+        this._storageRoot = `${url.protocol}//${url.host}/`;
+      }
+    }
+
+    this._storageRootDiscovered = true;
+  }
+
+  /**
+   * Get storage root for testing/debugging.
+   */
+  getStorageRoot(): string {
+    return this._storageRoot;
   }
 
   private getBodyContainerUrl(): string {
-    return `${this.storageRoot}fitpod/body/`;
+    return `${this._storageRoot}fitpod/body/`;
   }
 
   private getResourceUrl(id: string, date: string): string {
@@ -43,41 +125,60 @@ class BodyRepositoryImpl implements BodyRepository {
     return `${this.getBodyContainerUrl()}${year}/${month}/${id}.ttl`;
   }
 
-  async list(): Promise<Result<BodyMeasurement[]>> {
-    // For testing, we'll implement a simple list that reads recent months
-    // In production, this would need more sophisticated querying
+  async list(monthsBack: number = 12): Promise<Result<BodyMeasurement[]>> {
+    // Ensure storage root is discovered before listing
+    await this.ensureStorageRoot();
+
+    // AR-20: Multi-month listing
     const measurements: BodyMeasurement[] = [];
     
     try {
-      // List current year/month
       const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      
-      const containerUrl = `${this.getBodyContainerUrl()}${year}/${month}/`;
-      const listResult = await this.solidIo.listContainer(containerUrl);
-      
-      if (!listResult.ok) {
-        // Container might not exist yet, return empty list
-        return success([]);
-      }
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
 
-      // Read each measurement
-      for (const resourceUrl of listResult.value) {
-        const readResult = await this.getById(
-          resourceUrl.split('/').pop()?.replace('.ttl', '') ?? ''
-        );
-        if (readResult.ok && readResult.value) {
-          measurements.push(readResult.value);
+      // Iterate over last N months
+      for (let i = 0; i < monthsBack; i++) {
+        const month = currentMonth - i;
+        const year = currentYear - Math.floor((i - currentMonth) / 12);
+
+        const yearStr = String(year);
+        const monthStr = String(month + 1).padStart(2, '0');
+        
+        const containerUrl = `${this.getBodyContainerUrl()}${yearStr}/${monthStr}/`;
+        
+        // Skip future months
+        if (year > currentYear || (year === currentYear && month > currentMonth)) {
+          continue;
+        }
+
+        const listResult = await this.solidIo.listContainer(containerUrl);
+        
+        if (!listResult.ok) {
+          // Container might not exist, skip it
+          continue;
+        }
+
+        // Read each measurement from this month
+        for (const resourceUrl of listResult.value) {
+          const readResult = await this.getById(
+            resourceUrl.split('/').pop()?.replace('.ttl', '') ?? ''
+          );
+          if (readResult.ok && readResult.value) {
+            measurements.push(readResult.value);
+          }
         }
       }
+
+      // Sort by date descending (newest first)
+      measurements.sort((a, b) => b.date.localeCompare(a.date));
 
       return success(measurements);
     } catch (error) {
       return failure(
         appError(
           'NetworkError',
-          'Failed to list measurements',
+          `Failed to list measurements (last ${monthsBack} months)`,
           error instanceof Error ? error.message : String(error)
         )
       );
@@ -85,8 +186,8 @@ class BodyRepositoryImpl implements BodyRepository {
   }
 
   async getById(id: string): Promise<Result<BodyMeasurement | null>> {
-    // We need the date to construct the URL due to sharding
-    // For testing, we'll try current month
+    // Date is required to construct URL due to container sharding
+    // Default to current month for lookup
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -117,11 +218,11 @@ class BodyRepositoryImpl implements BodyRepository {
   }
 
   async add(measurement: BodyMeasurement): Promise<Result<void>> {
-    // AR-06: Validate before write
-    const validation = validateBodyMeasurement(measurement);
-    if (!validation.valid) {
+    // AR-06: Domain validation
+    const domainValidation = validateBodyMeasurement(measurement);
+    if (!domainValidation.valid) {
       return failure(
-        appError('ValidationFailed', 'Invalid measurement data', validation.errors)
+        appError('ValidationFailed', 'Invalid measurement data', domainValidation.errors)
       );
     }
 
@@ -132,11 +233,11 @@ class BodyRepositoryImpl implements BodyRepository {
   }
 
   async update(measurement: BodyMeasurement): Promise<Result<void>> {
-    // Validation
-    const validation = validateBodyMeasurement(measurement);
-    if (!validation.valid) {
+    // AR-06: Domain validation
+    const domainValidation = validateBodyMeasurement(measurement);
+    if (!domainValidation.valid) {
       return failure(
-        appError('ValidationFailed', 'Invalid measurement data', validation.errors)
+        appError('ValidationFailed', 'Invalid measurement data', domainValidation.errors)
       );
     }
 
@@ -157,12 +258,12 @@ class BodyRepositoryImpl implements BodyRepository {
     return await this.solidIo.putReplace(url, store, etag);
   }
 
-  async remove(id: string): Promise<Result<void>> {
-    // Similar to getById, we need date for URL construction
+  async remove(id: string, date?: string): Promise<Result<void>> {
+    // Use provided date or derive from current month
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const dateStr = `${year}-${month}-01`;
+    const dateStr = date ?? `${year}-${month}-01`;
     
     const url = this.getResourceUrl(id, dateStr);
     return await this.solidIo.deleteResource(url);

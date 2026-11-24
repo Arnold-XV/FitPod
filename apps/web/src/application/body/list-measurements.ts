@@ -12,11 +12,16 @@ export interface ListMeasurementsDeps {
   logger: Logger;
 }
 
+export interface ListMeasurementsOptions {
+  monthsBack?: number;
+  limit?: number;
+}
+
 export const createListMeasurementsUseCase = (deps: ListMeasurementsDeps) => {
-  return async (): Promise<Result<BodyMeasurement[]>> => {
+  return async (options?: ListMeasurementsOptions): Promise<Result<BodyMeasurement[]>> => {
     deps.logger.info('Listing body measurements');
 
-    const result = await deps.bodyRepository.list();
+    const result = await deps.bodyRepository.list(options?.monthsBack, options?.limit);
 
     if (result.ok) {
       deps.logger.info('Body measurements listed successfully', {

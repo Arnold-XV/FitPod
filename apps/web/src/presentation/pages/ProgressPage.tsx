@@ -103,7 +103,7 @@ export const ProgressPage = () => {
     setError(null);
     try {
       const uc = await container.getListMeasurementsUseCase();
-      const result = await uc();
+      const result = await uc({ monthsBack: 6 }); // Last 6 months for progress charts
       if (result.ok) {
         const sorted = [...result.value].sort((a, b) => b.date.localeCompare(a.date));
         setMeasurements(sorted);

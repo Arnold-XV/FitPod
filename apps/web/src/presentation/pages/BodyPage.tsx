@@ -68,7 +68,7 @@ export const BodyPage = () => {
     setError(null);
     try {
       const listUseCase = await container.getListMeasurementsUseCase();
-      const result = await listUseCase();
+      const result = await listUseCase({ monthsBack: 6 }); // Only last 6 months for better performance
       if (result.ok) {
         const sorted = [...result.value].sort((a, b) => b.date.localeCompare(a.date));
         setMeasurements(sorted);

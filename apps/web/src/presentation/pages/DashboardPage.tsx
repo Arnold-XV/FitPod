@@ -81,7 +81,7 @@ export const DashboardPage = () => {
       try {
         setIsLoading(true);
         const repo = await container.getBodyRepository();
-        const result = await repo.list(1); // Last 1 month only for dashboard
+        const result = await repo.list(3, 1); // Last 3 months, but stop after finding 1 measurement
         
         if (result.ok && result.value.length > 0) {
           // Get most recent measurement

@@ -125,7 +125,7 @@ class BodyRepositoryImpl implements BodyRepository {
     return `${this.getBodyContainerUrl()}${year}/${month}/${id}.ttl`;
   }
 
-  async list(monthsBack: number = 12): Promise<Result<BodyMeasurement[]>> {
+  async list(monthsBack: number = 12, limit?: number): Promise<Result<BodyMeasurement[]>> {
     // Ensure storage root is discovered before listing
     await this.ensureStorageRoot();
 
@@ -137,6 +137,11 @@ class BodyRepositoryImpl implements BodyRepository {
 
       // Iterate over last N months
       for (let i = 0; i < monthsBack; i++) {
+        // Early exit if we have enough measurements
+        if (limit && measurements.length >= limit) {
+          break;
+        }
+
         // Calculate the target date by going back i months
         const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const year = targetDate.getFullYear();
@@ -175,7 +180,10 @@ class BodyRepositoryImpl implements BodyRepository {
       // Sort by date descending (newest first)
       measurements.sort((a, b) => b.date.localeCompare(a.date));
 
-      return success(measurements);
+      // Apply limit after sorting
+      const limited = limit ? measurements.slice(0, limit) : measurements;
+
+      return success(limited);
     } catch (error) {
       return failure(
         appError(

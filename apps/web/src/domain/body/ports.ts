@@ -7,7 +7,7 @@ import type { Result } from '../shared/result';
 import type { BodyMeasurement } from './entities';
 
 export interface BodyRepository {
-  list(monthsBack?: number): Promise<Result<BodyMeasurement[]>>;
+  list(monthsBack?: number, limit?: number): Promise<Result<BodyMeasurement[]>>;
   getById(id: string): Promise<Result<BodyMeasurement | null>>;
   add(measurement: BodyMeasurement): Promise<Result<void>>;
   update(measurement: BodyMeasurement): Promise<Result<void>>;

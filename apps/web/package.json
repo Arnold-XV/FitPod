@@ -12,7 +12,6 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
-    "@fitpod/vocab": "workspace:*",
     "@inrupt/solid-client-authn-browser": "^5.0.3",
     "@rdfjs/types": "^1.1.0",
     "idb": "^8.0.0",

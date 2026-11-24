@@ -154,15 +154,22 @@ class BodyRepositoryImpl implements BodyRepository {
           continue;
         }
 
-        // Read each measurement from this month
-        for (const resourceUrl of listResult.value) {
-          const readResult = await this.getById(
-            resourceUrl.split('/').pop()?.replace('.ttl', '') ?? ''
-          );
-          if (readResult.ok && readResult.value) {
-            measurements.push(readResult.value);
+        // Read each measurement from this month in parallel
+        const readPromises = listResult.value.map(async (resourceUrl) => {
+          // Direct read instead of getById to avoid redundant searches
+          const result = await this.solidIo.readTurtle(resourceUrl);
+          if (!result.ok) return null;
+          
+          try {
+            return this.parseBodyMeasurement(result.value.store, resourceUrl);
+          } catch (error) {
+            console.warn(`Failed to parse ${resourceUrl}:`, error);
+            return null;
           }
-        }
+        });
+        
+        const results = await Promise.all(readPromises);
+        measurements.push(...results.filter((m): m is BodyMeasurement => m !== null));
       }
 
       // Sort by date descending (newest first)

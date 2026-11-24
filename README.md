@@ -161,13 +161,18 @@ Use `http://localhost:3001/` as OIDC issuer. Pod data stored in `.data/` (git-ig
 Populate Pod with test body measurements:
 
 1. Start local server: `npm run pod:start`
-2. Create account at <http://localhost:3001/>
-3. Generate client credentials at <http://localhost:3001/.account/>
-4. Create `.env.local` from `.env.example`:
+2. Create account and pod at <http://localhost:3001/> (ensure a WebID is linked)
+3. Generate client credentials:
+   - Go to <http://localhost:3001/.account/>
+   - Look under **"Credential tokens"**
+   - Click **"Create token"**
+   - Select your WebID and name your token, then submit
+   - Copy the generated `id` and `secret`
+4. Create `.env.local`:
    ```bash
-   SOLID_CLIENT_ID=your-client-id
-   SOLID_CLIENT_SECRET=your-client-secret
-   SOLID_OIDC_ISSUER=http://localhost:3001
+   SOLID_CLIENT_ID="your-client-id"
+   SOLID_CLIENT_SECRET="your-client-secret"
+   SOLID_OIDC_ISSUER="http://localhost:3001"
    ```
 5. Seed Pod:
    ```bash

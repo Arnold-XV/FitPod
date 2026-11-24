@@ -11,13 +11,13 @@
  * Test measurements are stored under fitpod/test/yyyy/mm/<id>.ttl
  */
 
-import type { BodyMeasurement } from '../apps/web/src/domain/body/entities';
+import type { BodyMeasurement } from '../../apps/web/src/domain/body/entities';
 import { loginWithClientCredentials, loadCredentialsFromEnv } from '../auth/solid-auth.js';
-import { createPodHttp } from '../apps/web/src/infrastructure/http/pod-http';
-import { createSolidIo } from '../apps/web/src/data/solid/solid-io';
-import { createLogger } from '../apps/web/src/infrastructure/logging/console-logger';
-import { createIdGenerator } from '../apps/web/src/infrastructure/id-gen/uuid-generator';
-import { createBodyRepository } from '../apps/web/src/data/repositories/body/body-repository';
+import { createPodHttp } from '../../apps/web/src/infrastructure/http/pod-http';
+import { createSolidIo } from '../../apps/web/src/data/solid/solid-io';
+import { createLogger } from '../../apps/web/src/infrastructure/logging/console-logger';
+import { createIdGenerator } from '../../apps/web/src/infrastructure/id-gen/uuid-generator';
+import { createBodyRepository } from '../../apps/web/src/data/repositories/body/body-repository';
 
 const FP = 'https://w3id.org/fitpod/ns#';
 
@@ -36,10 +36,10 @@ const parseArgs = (args: string[]): SeedConfig => {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--count' && args[i + 1]) {
-      config.count = parseInt(args[i + 1], 10);
+    if (arg === '--count' && args[i + 1] !== undefined) {
+      config.count = parseInt(args[i + 1]!, 10);
       i++;
-    } else if (arg === '--profile' && args[i + 1]) {
+    } else if (arg === '--profile' && args[i + 1] !== undefined) {
       const profile = args[i + 1];
       if (profile === 'normal' || profile === 'edge' || profile === 'mixed') {
         config.profile = profile;
@@ -64,9 +64,9 @@ const generateMeasurement = (profile: 'normal' | 'edge' | 'mixed', index: number
   // Generate dates in the past 12 months
   const date = new Date();
   date.setMonth(now.getMonth() - Math.floor(Math.random() * 12));
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = date.toISOString().split('T')[0] ?? new Date().toISOString().slice(0, 10);
 
-  if (profile === 'edge' || profile === 'mixed') {
+  if (profile === 'edge') {
     // Edge case: minimum values
     return {
       id: `test-${index}-${Date.now()}`,
@@ -177,7 +177,7 @@ const main = async (): Promise<void> => {
   repo.setWebId(webId);
   await repo.ensureStorageRoot();
 
-  console.log(`Storage Root: ${repo['_storageRoot']}`);
+  console.log(`Storage Root: ${repo.getStorageRoot()}`);
 
   if (config.clear) {
     await clearTestMeasurements(repo);

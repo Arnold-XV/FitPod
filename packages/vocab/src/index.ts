@@ -34,6 +34,9 @@ export const solid = (name: string): string => `${SOLID}${name}`;
 /** Build an `xsd:` IRI. */
 export const xsd = (name: string): string => `${XSD}${name}`;
 
+/** Build an `rdf:` IRI. */
+export const rdf = (name: string): string => `${RDF}${name}`;
+
 export const RDF_TYPE = `${RDF}type`;
 export const XSD_STRING = `${XSD}string`;
 export const XSD_INTEGER = `${XSD}integer`;
@@ -44,6 +47,75 @@ export const XSD_DATETIME = `${XSD}dateTime`;
 
 /** Current schema version stamped on every primary subject (FR-POD-09). */
 export const SCHEMA_VERSION = 1;
+
+// ══════════════════════════════════════════════════
+// Workout Module Vocabulary
+// ══════════════════════════════════════════════════
+
+// Workout session
+export const FP_WORKOUT_SESSION = fp('WorkoutSession');
+export const FP_START_TIME = fp('startTime');
+export const FP_END_TIME = fp('endTime');
+export const FP_ROUTINE_REF = fp('routineRef');
+export const FP_EXERCISE_BLOCK = fp('exerciseBlock');
+export const FP_EST_KCAL_BURNED = fp('estKcalBurned');
+
+// Exercise block
+export const FP_EXERCISE_BLOCK_TYPE = fp('ExerciseBlock');
+export const FP_POSITION = fp('position');
+export const FP_EXERCISE_NAME = fp('exerciseName');
+export const FP_EXERCISE_REF = fp('exerciseRef');
+export const FP_SET_LOG = fp('setLog');
+
+// Set log
+export const FP_SET_LOG_TYPE = fp('SetLog');
+export const FP_SET_INDEX = fp('setIndex');
+export const FP_WEIGHT_KG = fp('weightKg');
+export const FP_REPS = fp('reps');
+export const FP_REST_SEC = fp('restSec');
+export const FP_RPE = fp('rpe');
+
+// Exercise reference
+export const FP_EXERCISE_REF_TYPE = fp('ExerciseRef');
+export const FP_EXERCISE_SOURCE = fp('exerciseSource');
+export const FP_EXERCISE_ID = fp('exerciseId');
+
+// Routine
+export const FP_ROUTINE = fp('Routine');
+export const FP_DAYS_OF_WEEK = fp('daysOfWeek');
+export const FP_CREATED_BY = fp('createdBy');
+export const FP_SOURCE_PRESCRIPTION = fp('sourcePrescription');
+export const FP_ROUTINE_ITEM = fp('routineItem');
+
+// Routine item
+export const FP_ROUTINE_ITEM_TYPE = fp('RoutineItem');
+export const FP_TARGET_SETS = fp('targetSets');
+export const FP_TARGET_REPS = fp('targetReps');
+export const FP_TARGET_WEIGHT_KG = fp('targetWeightKg');
+
+// Custom exercise
+export const FP_CUSTOM_EXERCISE = fp('CustomExercise');
+export const FP_PRIMARY_MUSCLES = fp('primaryMuscles');
+export const FP_EQUIPMENT = fp('equipment');
+
+// Progress records
+export const FP_PROGRESS_RECORDS = fp('ProgressRecords');
+export const FP_PERSONAL_RECORD = fp('personalRecord');
+export const FP_SOURCE_HASH = fp('sourceHash');
+export const FP_COMPUTED_AT = fp('computedAt');
+
+// Personal record
+export const FP_PERSONAL_RECORD_TYPE = fp('PersonalRecord');
+export const FP_RECORD_TYPE = fp('recordType');
+export const FP_VALUE = fp('value');
+export const FP_ACHIEVED_AT = fp('achievedAt');
+export const FP_SESSION_REF = fp('sessionRef');
+
+// Common fields (reused from body module)
+export const FP_DATE = fp('date');
+export const FP_NAME = fp('name');
+export const FP_NOTE = fp('note');
+export const FP_SCHEMA_VERSION = fp('schemaVersion');
 
 /** Prefix map used when serialising Turtle. */
 export const PREFIXES: Record<string, string> = {

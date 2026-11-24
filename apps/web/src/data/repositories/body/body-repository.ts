@@ -134,23 +134,18 @@ class BodyRepositoryImpl implements BodyRepository {
     
     try {
       const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth();
 
       // Iterate over last N months
       for (let i = 0; i < monthsBack; i++) {
-        const month = currentMonth - i;
-        const year = currentYear - Math.floor((i - currentMonth) / 12);
+        // Calculate the target date by going back i months
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = targetDate.getFullYear();
+        const month = targetDate.getMonth() + 1; // 1-indexed for URL
 
         const yearStr = String(year);
-        const monthStr = String(month + 1).padStart(2, '0');
+        const monthStr = String(month).padStart(2, '0');
         
         const containerUrl = `${this.getBodyContainerUrl()}${yearStr}/${monthStr}/`;
-        
-        // Skip future months
-        if (year > currentYear || (year === currentYear && month > currentMonth)) {
-          continue;
-        }
 
         const listResult = await this.solidIo.listContainer(containerUrl);
         
@@ -186,35 +181,46 @@ class BodyRepositoryImpl implements BodyRepository {
   }
 
   async getById(id: string): Promise<Result<BodyMeasurement | null>> {
-    // Date is required to construct URL due to container sharding
-    // Default to current month for lookup
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const dateStr = `${year}-${month}-01`;
+    // Try to extract date from ID if it follows format like "timestamp-based"
+    // Otherwise search recent months
+    await this.ensureStorageRoot();
     
-    const url = this.getResourceUrl(id, dateStr);
-    const result = await this.solidIo.readTurtle(url);
+    // Try current month first
+    const now = new Date();
+    
+    // Search last 12 months for the measurement
+    for (let i = 0; i < 12; i++) {
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = targetDate.getFullYear();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const dateStr = `${year}-${month}-01`;
+      
+      const url = this.getResourceUrl(id, dateStr);
+      const result = await this.solidIo.readTurtle(url);
 
-    if (!result.ok) {
-      if (result.error.type === 'NotFound') {
-        return success(null);
+      if (result.ok) {
+        try {
+          const measurement = this.parseBodyMeasurement(result.value.store, url);
+          return success(measurement);
+        } catch (error) {
+          return failure(
+            appError(
+              'ValidationFailed',
+              'Failed to parse measurement',
+              error instanceof Error ? error.message : String(error)
+            )
+          );
+        }
       }
-      return failure(result.error);
+      
+      // If not found and error is not NotFound, return the error
+      if (!result.ok && result.error.type !== 'NotFound') {
+        return failure(result.error);
+      }
     }
-
-    try {
-      const measurement = this.parseBodyMeasurement(result.value.store, url);
-      return success(measurement);
-    } catch (error) {
-      return failure(
-        appError(
-          'ValidationFailed',
-          'Failed to parse measurement',
-          error instanceof Error ? error.message : String(error)
-        )
-      );
-    }
+    
+    // Not found in any recent month
+    return success(null);
   }
 
   async add(measurement: BodyMeasurement): Promise<Result<void>> {

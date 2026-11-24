@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AppShell } from '../components/layout/AppShell';
@@ -5,12 +6,29 @@ import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatCard } from '../components/ui/StatCard';
+import { container } from '@/app/container';
 
 const getUsernameFromWebId = (webId: string): string => {
   try {
     const url = new URL(webId);
-    const parts = url.pathname.split('/').filter(Boolean);
-    return parts[0] ?? url.hostname;
+    
+    // Try to extract from subdomain (e.g., arnold.solidcommunity.net -> arnold)
+    const hostParts = url.hostname.split('.');
+    if (hostParts.length >= 3) {
+      const subdomain = hostParts[0];
+      if (subdomain && subdomain !== 'www') {
+        return subdomain;
+      }
+    }
+    
+    // Fallback: extract from path (e.g., /users/arnold/)
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0 && pathParts[0] !== 'profile') {
+      return pathParts[0] ?? url.hostname;
+    }
+    
+    // Last resort: use hostname
+    return url.hostname;
   } catch {
     return webId;
   }
@@ -55,6 +73,35 @@ export const DashboardPage = () => {
   const navigate = useNavigate();
   const username = webId ? getUsernameFromWebId(webId) : 'Pengguna';
 
+  const [latestWeight, setLatestWeight] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadLatestMeasurement = async () => {
+      try {
+        setIsLoading(true);
+        const repo = await container.getBodyRepository();
+        const result = await repo.list(3); // Last 3 months
+        
+        if (result.ok && result.value.length > 0) {
+          // Get most recent measurement
+          const latest = result.value[0];
+          if (latest) {
+            setLatestWeight(latest.weightKg);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load measurements:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (webId) {
+      loadLatestMeasurement();
+    }
+  }, [webId]);
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Selamat pagi' : hour < 17 ? 'Selamat siang' : 'Selamat malam';
 
@@ -98,7 +145,7 @@ export const DashboardPage = () => {
         >
           <StatCard
             label="Berat Terakhir"
-            value="—"
+            value={isLoading ? '...' : (latestWeight ? latestWeight.toFixed(1) : '—')}
             unit="kg"
             icon={<ScaleIcon />}
           />

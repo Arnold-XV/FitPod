@@ -268,6 +268,41 @@ export const SocialPage = () => {
     }
   };
 
+  const handleCancelRequest = async (peerWebId: string) => {
+    if (!window.confirm('Batalkan permintaan pertemanan?')) return;
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const repo = await container.getSocialRepository();
+      
+      // Remove from local connections
+      const result = await repo.removeConnection(peerWebId);
+      if (!result.ok) {
+        setError(result.error.message);
+        setLoading(false);
+        return;
+      }
+
+      // Send cancel notification to peer (same as remove)
+      if (webId) {
+        const notifyResult = await repo.sendRemoveNotification(peerWebId, webId);
+        if (!notifyResult.ok) {
+          console.warn('Failed to notify peer about cancellation:', notifyResult.error);
+        }
+      }
+
+      setSuccess('Permintaan dibatalkan');
+      await loadConnections(); // Refresh
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AppShell>
       <PageWrapper title="Sosial" subtitle="Hubungkan dengan teman dan pantau progress bersama.">
@@ -473,14 +508,27 @@ export const SocialPage = () => {
                         padding: '12px',
                         border: '1px solid var(--border)',
                         borderRadius: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
                       }}
                     >
-                      <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>
-                        {req.peerWebId.split('/')[2]}
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>
+                          {req.peerWebId.split('/')[2]}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                          Menunggu konfirmasi
+                        </div>
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                        Menunggu konfirmasi
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={loading}
+                        onClick={() => handleCancelRequest(req.peerWebId)}
+                      >
+                        Batalkan
+                      </Button>
                     </div>
                   ))}
                 </div>

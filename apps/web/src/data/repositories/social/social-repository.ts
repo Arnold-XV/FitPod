@@ -78,7 +78,9 @@ class SocialRepositoryImpl implements SocialRepository {
         console.log(`[SocialRepository] Discovered storage root: ${this._storageRoot}`);
       } else {
         const url = new URL(this._webId);
-        const username = url.pathname.split('/').filter(Boolean)[0];
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        // Skip 'profile' segment for solidcommunity.net WebIDs
+        const username = pathParts[0] === 'profile' ? '' : pathParts[0];
         this._storageRoot = username
           ? `${url.protocol}//${url.host}/${username}/`
           : `${url.protocol}//${url.host}/`;
@@ -88,7 +90,9 @@ class SocialRepositoryImpl implements SocialRepository {
       console.warn(`[SocialRepository] Failed to discover storage root: ${error}`);
       if (this._webId) {
         const url = new URL(this._webId);
-        const username = url.pathname.split('/').filter(Boolean)[0];
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        // Skip 'profile' segment for solidcommunity.net WebIDs
+        const username = pathParts[0] === 'profile' ? '' : pathParts[0];
         this._storageRoot = username
           ? `${url.protocol}//${url.host}/${username}/`
           : `${url.protocol}//${url.host}/`;
@@ -585,12 +589,26 @@ class SocialRepositoryImpl implements SocialRepository {
           // Check if it's remove notification and auto-process
           const isRemove = this.parseRemoveNotification(readResult.value.store, notificationUrl);
           if (isRemove) {
+            // Remove connection if exists
             const removeResult = await this.removeConnection(isRemove.actor);
-            if (!removeResult.ok) {
+            if (!removeResult.ok && removeResult.error.type !== 'NotFound') {
               console.warn('Failed to remove connection:', removeResult.error);
-              continue;
             }
 
+            // Also delete any pending friend request from this actor
+            for (const reqUrl of listResult.value) {
+              if (reqUrl === notificationUrl) continue;
+              const reqRead = await this.solidIo.readTurtle(reqUrl);
+              if (!reqRead.ok) continue;
+              
+              const friendReq = this.parseFriendRequest(reqRead.value.store, reqUrl);
+              if (friendReq && friendReq.fromWebId === isRemove.actor) {
+                await this.deleteInboxNotification(reqUrl);
+                console.log('[SocialRepository] Deleted pending friend request from:', isRemove.actor);
+              }
+            }
+
+            // Delete removal notification
             const deleteResult = await this.deleteInboxNotification(notificationUrl);
             if (!deleteResult.ok) {
               console.warn('Connection removed but notification cleanup failed:', deleteResult.error);

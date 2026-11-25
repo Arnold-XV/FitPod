@@ -15,6 +15,7 @@ export interface SolidIo {
   putNew(url: string, store: Store): Promise<Result<void>>;
   putNewUnauthenticated(url: string, store: Store): Promise<Result<void>>;
   putReplace(url: string, store: Store, etag: string): Promise<Result<void>>;
+  putForce(url: string, store: Store): Promise<Result<void>>;
   deleteResource(url: string): Promise<Result<void>>;
   getHttp(): PodHttp;
 }
@@ -162,6 +163,29 @@ class SolidIoImpl implements SolidIo {
         appError(
           'NetworkError',
           'Failed to update resource',
+          error instanceof Error ? error.message : String(error)
+        )
+      );
+    }
+  }
+
+  async putForce(url: string, store: Store): Promise<Result<void>> {
+    try {
+      const turtle = await this.serializeStore(store);
+      const response = await this.http.authed(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'text/turtle',
+        },
+        body: turtle,
+      });
+
+      return handleHttpResponse(response, async () => undefined);
+    } catch (error) {
+      return failure(
+        appError(
+          'NetworkError',
+          'Failed to force write resource',
           error instanceof Error ? error.message : String(error)
         )
       );

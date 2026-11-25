@@ -79,7 +79,18 @@ export class WorkoutRepository {
           ? await this.io.putReplace(url, store, existing.value.etag)
           : await this.io.putNew(url, store);
 
-        if (result.ok || result.error.type !== 'Conflict' || attempt === 1) {
+        if (result.ok) {
+          return result;
+        }
+
+        // If 412 on last attempt, force overwrite (file might be in inconsistent state)
+        if (result.error.type === 'Conflict' && attempt === 1) {
+          console.warn('[WorkoutRepository] ETag conflict, forcing overwrite');
+          const fallbackResult = await this.io.putForce(url, store);
+          return fallbackResult;
+        }
+
+        if (result.error.type !== 'Conflict' || attempt === 1) {
           return result;
         }
       }

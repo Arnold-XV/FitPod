@@ -32,6 +32,8 @@ fp:BodyMeasurementShape a sh:NodeShape ;
   sh:property [ sh:path fp:schemaVersion ; sh:minCount 1 ; sh:datatype xsd:integer ] .
 `;
 
+// COMMENTED OUT - Module pangan dihapus karena keterbatasan dan masalah database
+/*
 export const FOOD_ENTRY_SHAPE = `${preamble}
 fp:FoodEntryShape a sh:NodeShape ;
   sh:targetClass fp:FoodEntry ;
@@ -39,6 +41,7 @@ fp:FoodEntryShape a sh:NodeShape ;
   sh:property [ sh:path fp:kcal ; sh:minInclusive 0 ; sh:maxInclusive 10000 ; sh:minCount 1 ] ;
   sh:property [ sh:path fp:meal ; sh:in ( "breakfast" "lunch" "dinner" "snack" ) ; sh:minCount 1 ] .
 `;
+*/
 
 export const WORKOUT_SESSION_SHAPE = `${preamble}
 fp:WorkoutSessionShape a sh:NodeShape ;
@@ -68,7 +71,8 @@ fp:TrainerSummaryShape a sh:NodeShape ;
 export const ALL_SHAPES: Record<string, string> = {
   provenance: PROVENANCE_SHAPE,
   body: BODY_MEASUREMENT_SHAPE,
-  nutrition: FOOD_ENTRY_SHAPE,
+  // COMMENTED OUT - Module pangan dihapus
+  // nutrition: FOOD_ENTRY_SHAPE,
   workout: WORKOUT_SESSION_SHAPE,
   access: ACCESS_GRANT_SHAPE,
   health: TRAINER_SUMMARY_SHAPE,

@@ -1,8 +1,11 @@
-export type Category = 'body' | 'routines' | 'sessions' | 'nutrition-summary' | 'injuries' | 'trainer-summary' | 'prescriptions';
+// COMMENTED OUT - Module pangan dihapus karena keterbatasan dan masalah database
+// export type Category = 'body' | 'routines' | 'sessions' | 'nutrition-summary' | 'injuries' | 'trainer-summary' | 'prescriptions';
+export type Category = 'body' | 'routines' | 'sessions' | 'injuries' | 'trainer-summary' | 'prescriptions';
 
 export type Visibility = 'private' | 'friends' | 'public';
 
-export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+// COMMENTED OUT - Module pangan dihapus
+// export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export type ExerciseSource = 'free-exercise-db' | 'wger' | 'custom';
 

@@ -1,3 +1,5 @@
+// COMMENTED OUT - Module pangan dihapus karena keterbatasan dan masalah database
+/*
 import { describe, it, expect } from 'vitest';
 import { parseNutritionDay, serializeNutritionDay } from '../domain/nutrition/entities';
 
@@ -27,3 +29,4 @@ describe('Nutrition Domain', () => {
     expect(nutrition.entries[0].foodName).toBe('Apple');
   });
 });
+*/

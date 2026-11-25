@@ -7,7 +7,8 @@ import { LoginPage } from './presentation/pages/LoginPage';
 import { DashboardPage } from './presentation/pages/DashboardPage';
 import { BodyPage } from './presentation/pages/BodyPage';
 import { WorkoutPage } from './presentation/pages/WorkoutPage';
-import { NutritionPage } from './presentation/pages/NutritionPage';
+// COMMENTED OUT - Module pangan dihapus
+// import { NutritionPage } from './presentation/pages/NutritionPage';
 import { ProgressPage } from './presentation/pages/ProgressPage';
 import { SocialPage } from './presentation/pages/SocialPage';
 import { AccessPage } from './presentation/pages/AccessPage';
@@ -71,7 +72,8 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/body" element={<ProtectedRoute><BodyPage /></ProtectedRoute>} />
       <Route path="/workout" element={<ProtectedRoute><WorkoutPage /></ProtectedRoute>} />
-      <Route path="/nutrition" element={<ProtectedRoute><NutritionPage /></ProtectedRoute>} />
+      {/* COMMENTED OUT - Module pangan dihapus */}
+      {/* <Route path="/nutrition" element={<ProtectedRoute><NutritionPage /></ProtectedRoute>} /> */}
       <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
       <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
       <Route path="/access" element={<ProtectedRoute><AccessPage /></ProtectedRoute>} />

@@ -1,3 +1,5 @@
+// COMMENTED OUT - Module pangan dihapus karena keterbatasan dan masalah database
+/*
 import { AppShell } from '../components/layout/AppShell';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
@@ -23,7 +25,7 @@ export const NutritionPage = () => {
   return (
     <AppShell>
       <PageWrapper title="Pangan" subtitle="Pantau asupan makanan dan gizi harian Anda.">
-        {/* Search */}
+        {/* Search *\/}
         <div style={{ marginBottom: '24px', maxWidth: '480px' }}>
           <Input
             placeholder="Cari makanan atau minuman..."
@@ -35,7 +37,7 @@ export const NutritionPage = () => {
           </p>
         </div>
 
-        {/* Summary row */}
+        {/* Summary row *\/}
         <div
           style={{
             display: 'grid',
@@ -71,7 +73,7 @@ export const NutritionPage = () => {
           ))}
         </div>
 
-        {/* Meal sections */}
+        {/* Meal sections *\/}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {meals.map((meal) => (
             <Card key={meal.id} padding={false}>
@@ -116,3 +118,4 @@ export const NutritionPage = () => {
     </AppShell>
   );
 };
+*/

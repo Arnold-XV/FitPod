@@ -7,7 +7,6 @@
     "dev": "echo dev placeholder"
   },
   "dependencies": {
-    "@inrupt/solid-client-authn-node": "^1.12.1"
-  },
-  "devDependencies": {}
+    "@inrupt/solid-client-authn-node": "^5.0.3"
+  }
 }

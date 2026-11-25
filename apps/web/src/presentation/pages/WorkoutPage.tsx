@@ -3,8 +3,7 @@ import { container } from '@/app/container';
 import { useAuth } from '../hooks/useAuth';
 import type { SharedActivity } from '@/domain/social/entities';
 import type { WorkoutSession, ExerciseBlock, SetLog } from '@/domain/workout/entities';
-import { calculateSessionVolume } from '@/domain/workout/entities';
-import { toSessionRecord, fromSessionRecord } from '@/domain/workout/ports';
+import { calculateVolume } from '@/domain/workout/calculators';
 import { AppShell } from '../components/layout/AppShell';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
@@ -16,6 +15,33 @@ import type { WorkoutExercise as Exercise, WorkoutPlan as Plan } from '@/data/re
 const initialPlans: Plan[] = [];
 
 const today = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+
+const toSessionRecord = (session: WorkoutSession, planId: number, planName: string, shared: boolean) => ({
+  id: session.id,
+  date: session.date,
+  planId,
+  planName,
+  day: session.date,
+  sets: Object.fromEntries(session.exerciseBlocks.map((block) => [
+    block.exerciseName,
+    block.sets.map((set) => ({ reps: String(set.reps), weight: String(set.weightKg) })),
+  ])),
+  shared,
+});
+
+const fromSessionRecord = (record: { id: string; date: string; sets: Record<string, { reps: string; weight: string }[]> }): WorkoutSession => ({
+  id: record.id,
+  date: record.date,
+  startTime: `${record.date}T00:00:00.000Z`,
+  endTime: `${record.date}T00:00:00.000Z`,
+  exerciseBlocks: Object.entries(record.sets).map(([exerciseName, sets], index) => ({
+    position: index + 1,
+    exerciseName,
+    exerciseRef: { source: 'custom' as const, id: exerciseName.toLowerCase().replace(/\s+/g, '-') },
+    sets: sets.map((set, setIndex) => ({ setIndex: setIndex + 1, reps: Number(set.reps) || 0, weightKg: Number(set.weight) || 0 })),
+  })),
+  schemaVersion: 1,
+});
 
 export const WorkoutPage = () => {
   const [plans, setPlans] = useState(initialPlans);
@@ -66,7 +92,7 @@ export const WorkoutPage = () => {
           date: new Date(selectedDay).toISOString(),
           title: `${plan.name} selesai`,
           durationMin: 0,
-          totalVolumeKg: calculateSessionVolume(session),
+          totalVolumeKg: calculateVolume(session),
           exerciseNames: session.exerciseBlocks.map((block) => block.exerciseName),
           visibility: 'friends',
           schemaVersion: 1
@@ -101,7 +127,6 @@ export const WorkoutPage = () => {
   useEffect(() => {
     if (!plan || !selectedDay) return;
     const sessionId = `${selectedDay}-${plan.id}`;
-    const date = new Date(selectedDay);
     
     console.log('[WorkoutPage] Loading session:', { sessionId, planId: plan.id, planName: plan.name, selectedDay });
     
@@ -118,10 +143,11 @@ export const WorkoutPage = () => {
           // Create new empty session
           const newSession: WorkoutSession = {
             id: sessionId,
-            date,
-            startTime: date,
-            endTime: date,
+            date: selectedDay,
+            startTime: `${selectedDay}T00:00:00.000Z`,
+            endTime: `${selectedDay}T00:00:00.000Z`,
             exerciseBlocks: [],
+            schemaVersion: 1,
           };
           setSession(newSession);
           setShare(false);
@@ -132,10 +158,11 @@ export const WorkoutPage = () => {
         console.log('[WorkoutPage] Load error:', err);
         const newSession: WorkoutSession = {
           id: sessionId,
-          date,
-          startTime: date,
-          endTime: date,
+          date: selectedDay,
+          startTime: `${selectedDay}T00:00:00.000Z`,
+          endTime: `${selectedDay}T00:00:00.000Z`,
           exerciseBlocks: [],
+          schemaVersion: 1,
         };
         setSession(newSession);
         setShare(false);
@@ -150,7 +177,7 @@ export const WorkoutPage = () => {
     setExerciseName(''); setShowAddExercise(false);
   };
 
-  const totalVolume = useMemo(() => session ? calculateSessionVolume(session) : 0, [session]);
+  const totalVolume = useMemo(() => session ? calculateVolume(session) : 0, [session]);
 
   const updateSet = (exerciseName: string, setIndex: number, field: 'reps' | 'weightKg', value: string) => {
     if (!session) return;
@@ -201,6 +228,7 @@ export const WorkoutPage = () => {
         const newBlock: ExerciseBlock = {
           position: nextBlocks.length + 1,
           exerciseName: exercise.name,
+          exerciseRef: { source: 'custom', id: exercise.name.toLowerCase().replace(/\s+/g, '-') },
           sets: [],
         };
         nextBlocks.push(newBlock);
@@ -287,16 +315,16 @@ export const WorkoutPage = () => {
     if (!window.confirm('Hapus riwayat sesi ini? Data tidak dapat dikembalikan.')) return;
     
     try {
-      const repo = await container.getWorkoutRepository();
       const sessionId = `${selectedDay}-${plan.id}`;
       // Delete from Pod (need to add delete method to repository)
       // For now, just reset local state
       const newSession: WorkoutSession = {
         id: sessionId,
-        date: new Date(selectedDay),
-        startTime: new Date(selectedDay),
-        endTime: new Date(selectedDay),
+        date: selectedDay,
+        startTime: `${selectedDay}T00:00:00.000Z`,
+        endTime: `${selectedDay}T00:00:00.000Z`,
         exerciseBlocks: [],
+        schemaVersion: 1,
       };
       setSession(newSession);
       setSaved(false);

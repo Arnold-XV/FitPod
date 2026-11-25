@@ -5,7 +5,7 @@
 import type { SocialRepository } from '@/domain/social/ports';
 import type { Result } from '@/domain/shared/result';
 import type { Logger } from '@/domain/shared/logger';
-import { success } from '@/domain/shared/result';
+import { failure, success } from '@/domain/shared/result';
 
 interface RejectFriendRequestInput {
   requestId: string;

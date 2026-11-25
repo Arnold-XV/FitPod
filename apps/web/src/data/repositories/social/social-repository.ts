@@ -7,7 +7,7 @@
 import { DataFactory, Parser, Store } from 'n3';
 import type { SocialRepository } from '@/domain/social/ports';
 import type { Connection, FriendRequest, SharedActivity, ConnectionStatus } from '@/domain/social/entities';
-import { validateConnection, validateFriendRequest, validateSharedActivity } from '@/domain/social/entities';
+import { validateConnection, validateSharedActivity } from '@/domain/social/entities';
 import { appError, failure, success, type Result } from '@/domain/shared/result';
 import type { SolidIo } from '@/data/solid/solid-io';
 import { PIM } from '@fitpod/vocab';

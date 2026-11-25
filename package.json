@@ -13,9 +13,9 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "dev": "npm run dev -w @fitpod/web",
-    "build": "npm run build -w @fitpod/web",
-    "preview": "npm run preview -w @fitpod/web",
+    "dev": "npm run dev -w fitpod-web",
+    "build": "npm run build -w fitpod-web",
+    "preview": "npm run preview -w fitpod-web",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",

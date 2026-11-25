@@ -23,6 +23,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const result = await container.authSession.restore();
         if (result?.webId) {
           setWebId(result.webId);
+          
+          // Setup inbox on first login (non-blocking)
+          try {
+            const setupInboxUseCase = await container.getSetupInboxUseCase();
+            await setupInboxUseCase();
+          } catch (error) {
+            console.warn('Failed to setup inbox:', error);
+          }
+          
           // Navigate to dashboard unless already on a protected page
           const publicPaths = ['/', '/login'];
           if (publicPaths.includes(window.location.pathname)) {

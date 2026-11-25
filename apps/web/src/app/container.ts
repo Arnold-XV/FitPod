@@ -12,12 +12,24 @@ import { createIdGenerator } from '@/infrastructure/id-gen/uuid-generator';
 import { createSolidIo, type SolidIo } from '@/data/solid/solid-io';
 import { createBodyRepository } from '@/data/repositories/body/body-repository';
 import type { BodyRepository } from '@/domain/body/ports';
+import { createSocialRepository } from '@/data/repositories/social/social-repository';
+import type { SocialRepository } from '@/domain/social/ports';
+import { createAclManager } from '@/data/acl/acl-manager';
+import type { AclManager } from '@/data/acl/acl-manager';
+import { createWorkoutRepository, type WorkoutRepository } from '@/data/repositories/workout/workout-repository';
 
 // Use cases
 import { createLoginUseCase } from '@/application/auth/login';
 import { createLogoutUseCase } from '@/application/auth/logout';
 import { createAddMeasurementUseCase } from '@/application/body/add-measurement';
 import { createListMeasurementsUseCase } from '@/application/body/list-measurements';
+import { createSendFriendRequestUseCase } from '@/application/social/send-friend-request';
+import { createAcceptFriendRequestUseCase } from '@/application/social/accept-friend-request';
+import { createRejectFriendRequestUseCase } from '@/application/social/reject-friend-request';
+import { createListConnectionsUseCase } from '@/application/social/list-connections';
+import { createListIncomingRequestsUseCase } from '@/application/social/list-incoming-requests';
+import { createGetSocialFeedUseCase } from '@/application/social/get-social-feed';
+import { createSetupInboxUseCase } from '@/application/social/setup-inbox';
 
 import type { Clock } from '@/domain/shared/clock';
 import type { IdGenerator } from '@/domain/shared/id-generator';
@@ -37,6 +49,18 @@ export class AppContainer {
   // Data (L4)
   private _solidIo?: SolidIo;
   private _bodyRepository?: BodyRepository;
+  private _socialRepository?: SocialRepository;
+  private _aclManager?: AclManager;
+  private _workoutRepository?: WorkoutRepository;
+
+  async getWorkoutRepository(): Promise<WorkoutRepository> {
+    if (!this._workoutRepository) {
+      const webId = this.authSession.webId;
+      if (!webId) throw new Error('Not authenticated - cannot create workout repository');
+      this._workoutRepository = createWorkoutRepository(this.solidIo, webId);
+    }
+    return this._workoutRepository;
+  }
 
   // Lazy initialization
   get authSession(): AuthSession {
@@ -123,11 +147,66 @@ export class AppContainer {
     return this.getBodyRepository();
   }
 
+  /**
+   * Get the social repository, initializing storage root via pim:storage discovery.
+   */
+  async getSocialRepository(): Promise<SocialRepository> {
+    if (!this._socialRepository) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create social repository');
+      }
+
+      this._socialRepository = createSocialRepository({
+        solidIo: this.solidIo,
+        storageRoot: '',
+      });
+
+      this._socialRepository.setWebId(webId);
+      await this._socialRepository.ensureStorageRoot();
+    }
+    return this._socialRepository;
+  }
+
+  /**
+   * Refresh the social repository (e.g., after logout/login with different WebID)
+   */
+  async refreshSocialRepository(): Promise<SocialRepository> {
+    this._socialRepository = undefined;
+    return this.getSocialRepository();
+  }
+
+  /**
+   * Get the ACL manager for granting/revoking access
+   */
+  async getAclManager(): Promise<AclManager> {
+    if (!this._aclManager) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create ACL manager');
+      }
+
+      this._aclManager = createAclManager({
+        podHttp: this.podHttp,
+        ownerWebId: webId,
+        logger: this.logger,
+      });
+    }
+    return this._aclManager;
+  }
+
   // Use Cases (cached after first access)
   private _loginUseCase?: ReturnType<typeof createLoginUseCase>;
   private _logoutUseCase?: ReturnType<typeof createLogoutUseCase>;
   private _addMeasurementUseCase?: ReturnType<typeof createAddMeasurementUseCase>;
   private _listMeasurementsUseCase?: ReturnType<typeof createListMeasurementsUseCase>;
+  private _sendFriendRequestUseCase?: ReturnType<typeof createSendFriendRequestUseCase>;
+  private _acceptFriendRequestUseCase?: ReturnType<typeof createAcceptFriendRequestUseCase>;
+  private _rejectFriendRequestUseCase?: ReturnType<typeof createRejectFriendRequestUseCase>;
+  private _listConnectionsUseCase?: ReturnType<typeof createListConnectionsUseCase>;
+  private _listIncomingRequestsUseCase?: ReturnType<typeof createListIncomingRequestsUseCase>;
+  private _getSocialFeedUseCase?: ReturnType<typeof createGetSocialFeedUseCase>;
+  private _setupInboxUseCase?: ReturnType<typeof createSetupInboxUseCase>;
 
   async getLoginUseCase(): Promise<ReturnType<typeof createLoginUseCase>> {
     if (!this._loginUseCase) {
@@ -173,17 +252,115 @@ export class AppContainer {
     return this._listMeasurementsUseCase;
   }
 
+  async getSendFriendRequestUseCase(): Promise<ReturnType<typeof createSendFriendRequestUseCase>> {
+    if (!this._sendFriendRequestUseCase) {
+      const socialRepository = await this.getSocialRepository();
+      const webId = this.authSession.webId;
+      if (!webId) throw new Error('Not authenticated');
+
+      this._sendFriendRequestUseCase = createSendFriendRequestUseCase({
+        socialRepository,
+        logger: this.logger,
+        clock: this.clock,
+        currentWebId: webId,
+      });
+    }
+    return this._sendFriendRequestUseCase;
+  }
+
+  async getAcceptFriendRequestUseCase(): Promise<ReturnType<typeof createAcceptFriendRequestUseCase>> {
+    if (!this._acceptFriendRequestUseCase) {
+      const socialRepository = await this.getSocialRepository();
+      const aclManager = await this.getAclManager();
+      const webId = this.authSession.webId;
+      if (!webId) throw new Error('Not authenticated');
+
+      this._acceptFriendRequestUseCase = createAcceptFriendRequestUseCase({
+        socialRepository,
+        aclManager,
+        logger: this.logger,
+        clock: this.clock,
+        currentWebId: webId,
+      });
+    }
+    return this._acceptFriendRequestUseCase;
+  }
+
+  async getRejectFriendRequestUseCase(): Promise<ReturnType<typeof createRejectFriendRequestUseCase>> {
+    if (!this._rejectFriendRequestUseCase) {
+      const socialRepository = await this.getSocialRepository();
+      this._rejectFriendRequestUseCase = createRejectFriendRequestUseCase({
+        socialRepository,
+        logger: this.logger,
+      });
+    }
+    return this._rejectFriendRequestUseCase;
+  }
+
+  async getListConnectionsUseCase(): Promise<ReturnType<typeof createListConnectionsUseCase>> {
+    if (!this._listConnectionsUseCase) {
+      const socialRepository = await this.getSocialRepository();
+      this._listConnectionsUseCase = createListConnectionsUseCase({
+        socialRepository,
+        logger: this.logger,
+      });
+    }
+    return this._listConnectionsUseCase;
+  }
+
+  async getListIncomingRequestsUseCase(): Promise<ReturnType<typeof createListIncomingRequestsUseCase>> {
+    if (!this._listIncomingRequestsUseCase) {
+      const socialRepository = await this.getSocialRepository();
+      this._listIncomingRequestsUseCase = createListIncomingRequestsUseCase({
+        socialRepository,
+        logger: this.logger,
+      });
+    }
+    return this._listIncomingRequestsUseCase;
+  }
+
+  async GetSocialFeedUseCase(): Promise<ReturnType<typeof createGetSocialFeedUseCase>> {
+    if (!this._getSocialFeedUseCase) {
+      const socialRepository = await this.getSocialRepository();
+      this._getSocialFeedUseCase = createGetSocialFeedUseCase({
+        socialRepository,
+        logger: this.logger,
+      });
+    }
+    return this._getSocialFeedUseCase;
+  }
+
+  async getSetupInboxUseCase(): Promise<ReturnType<typeof createSetupInboxUseCase>> {
+    if (!this._setupInboxUseCase) {
+      const aclManager = await this.getAclManager();
+      this._setupInboxUseCase = createSetupInboxUseCase({
+        aclManager,
+        logger: this.logger,
+      });
+    }
+    return this._setupInboxUseCase;
+  }
+
   /**
    * Reset repositories when user changes
    * Called after logout
    */
   async resetRepositories(): Promise<void> {
     this._bodyRepository = undefined;
+    this._socialRepository = undefined;
+    this._aclManager = undefined;
     this._solidIo = undefined;
     this._loginUseCase = undefined;
     this._logoutUseCase = undefined;
     this._addMeasurementUseCase = undefined;
     this._listMeasurementsUseCase = undefined;
+    this._sendFriendRequestUseCase = undefined;
+    this._acceptFriendRequestUseCase = undefined;
+    this._rejectFriendRequestUseCase = undefined;
+    this._listConnectionsUseCase = undefined;
+    this._listIncomingRequestsUseCase = undefined;
+    this._getSocialFeedUseCase = undefined;
+    this._setupInboxUseCase = undefined;
   }
 }
 

@@ -13,6 +13,7 @@ export interface SolidIo {
   readTurtle(url: string): Promise<Result<{ store: Store; etag: string | null }>>;
   listContainer(url: string): Promise<Result<string[]>>;
   putNew(url: string, store: Store): Promise<Result<void>>;
+  putNewUnauthenticated(url: string, store: Store): Promise<Result<void>>;
   putReplace(url: string, store: Store, etag: string): Promise<Result<void>>;
   deleteResource(url: string): Promise<Result<void>>;
   getHttp(): PodHttp;
@@ -113,6 +114,30 @@ class SolidIoImpl implements SolidIo {
         appError(
           'NetworkError',
           'Failed to create resource',
+          error instanceof Error ? error.message : String(error)
+        )
+      );
+    }
+  }
+
+  async putNewUnauthenticated(url: string, store: Store): Promise<Result<void>> {
+    try {
+      const turtle = await this.serializeStore(store);
+      const response = await this.http.plain(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'text/turtle',
+          'If-None-Match': '*',
+        },
+        body: turtle,
+      });
+
+      return handleHttpResponse(response, async () => undefined);
+    } catch (error) {
+      return failure(
+        appError(
+          'NetworkError',
+          'Failed to create resource (unauthenticated)',
           error instanceof Error ? error.message : String(error)
         )
       );

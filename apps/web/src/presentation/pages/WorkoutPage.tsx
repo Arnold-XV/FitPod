@@ -326,8 +326,15 @@ export const WorkoutPage = () => {
   };
 
   const deleteSession = async () => {
-    if (!plan || !session) return;
-    if (!window.confirm('Hapus riwayat sesi ini? Data tidak dapat dikembalikan.')) return;
+    console.log('[WorkoutPage] deleteSession called', { plan, session, selectedDay });
+    if (!plan || !session) {
+      console.log('[WorkoutPage] deleteSession aborted: no plan or session');
+      return;
+    }
+    if (!window.confirm('Hapus riwayat sesi ini? Data tidak dapat dikembalikan.')) {
+      console.log('[WorkoutPage] deleteSession cancelled by user');
+      return;
+    }
     
     try {
       const sessionId = `${selectedDay}-${plan.id}`;

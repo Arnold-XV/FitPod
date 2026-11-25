@@ -129,9 +129,12 @@ class SocialRepositoryImpl implements SocialRepository {
       const url = new URL(webId);
       // Extract storage root from WebID - typically protocol://host/username/
       const pathParts = url.pathname.split('/').filter(p => p);
-      const username = pathParts[0]; // First path segment is username
-      const storageRoot = `${url.protocol}//${url.host}/${username}/`;
-      console.log('[SocialRepository] Constructed shared URL for peer:', { webId, storageRoot, sharedUrl: `${storageRoot}fitpod/social/shared/` });
+      // Skip 'profile' segment for solidcommunity.net WebIDs
+      const username = pathParts[0] === 'profile' ? '' : pathParts[0];
+      const storageRoot = username 
+        ? `${url.protocol}//${url.host}/${username}/`
+        : `${url.protocol}//${url.host}/`;
+      console.log('[SocialRepository] Constructed shared URL for peer:', { webId, pathParts, username, storageRoot, sharedUrl: `${storageRoot}fitpod/social/shared/` });
       return `${storageRoot}fitpod/social/shared/`;
     }
     return `${this.getSocialContainerUrl()}shared/`;

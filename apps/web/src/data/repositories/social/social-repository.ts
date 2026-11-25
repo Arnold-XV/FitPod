@@ -78,14 +78,20 @@ class SocialRepositoryImpl implements SocialRepository {
         console.log(`[SocialRepository] Discovered storage root: ${this._storageRoot}`);
       } else {
         const url = new URL(this._webId);
-        this._storageRoot = `${url.protocol}//${url.host}/`;
+        const username = url.pathname.split('/').filter(Boolean)[0];
+        this._storageRoot = username
+          ? `${url.protocol}//${url.host}/${username}/`
+          : `${url.protocol}//${url.host}/`;
         console.log(`[SocialRepository] Fallback storage root: ${this._storageRoot}`);
       }
     } catch (error) {
       console.warn(`[SocialRepository] Failed to discover storage root: ${error}`);
       if (this._webId) {
         const url = new URL(this._webId);
-        this._storageRoot = `${url.protocol}//${url.host}/`;
+        const username = url.pathname.split('/').filter(Boolean)[0];
+        this._storageRoot = username
+          ? `${url.protocol}//${url.host}/${username}/`
+          : `${url.protocol}//${url.host}/`;
       }
     }
 
@@ -331,8 +337,9 @@ class SocialRepositoryImpl implements SocialRepository {
         graph: namedNode(''),
       } as any);
 
-      // Write to recipient's inbox using unauthenticated fetch (public append permission)
-      return await this.solidIo.putNewUnauthenticated(requestUrl, store);
+      // CSS requires an authenticated OIDC request before ACL evaluation.
+      // Recipient inbox ACL grants Append to authenticated agents.
+      return await this.solidIo.putNew(requestUrl, store);
     } catch (error) {
       return failure(
         appError(
@@ -392,12 +399,73 @@ class SocialRepositoryImpl implements SocialRepository {
         graph: namedNode(''),
       } as any);
 
-      return await this.solidIo.putNewUnauthenticated(notificationUrl, store);
+      // CSS rejects anonymous requests with 401 before public Append ACL rules.
+      return await this.solidIo.putNew(notificationUrl, store);
     } catch (error) {
       return failure(
         appError(
           'NetworkError',
           'Failed to send acceptance notification',
+          error instanceof Error ? error.message : String(error)
+        )
+      );
+    }
+  }
+
+  async sendRemoveNotification(toWebId: string, fromWebId: string): Promise<Result<void>> {
+    try {
+      const inboxDiscovery = await this.discoverInboxUrl(toWebId);
+      if (!inboxDiscovery.ok) {
+        return failure(
+          appError(
+            'NotFound',
+            `Could not discover inbox for ${toWebId}`,
+            inboxDiscovery.error
+          )
+        );
+      }
+
+      const toInboxUrl = inboxDiscovery.value;
+      const notificationId = `friend-remove-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const notificationUrl = `${toInboxUrl}${notificationId}.ttl`;
+
+      const store = new Store();
+      const subject = `${notificationUrl}#notification`;
+
+      store.addQuad({
+        subject: namedNode(subject),
+        predicate: namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+        object: namedNode(`${AS}Remove`),
+        graph: namedNode(''),
+      } as any);
+
+      store.addQuad({
+        subject: namedNode(subject),
+        predicate: namedNode(`${AS}actor`),
+        object: namedNode(fromWebId),
+        graph: namedNode(''),
+      } as any);
+
+      store.addQuad({
+        subject: namedNode(subject),
+        predicate: namedNode(`${AS}object`),
+        object: literal('friend-removal'),
+        graph: namedNode(''),
+      } as any);
+
+      store.addQuad({
+        subject: namedNode(subject),
+        predicate: namedNode(`${AS}published`),
+        object: literal(new Date().toISOString(), namedNode(`${XSD}dateTime`)),
+        graph: namedNode(''),
+      } as any);
+
+      return await this.solidIo.putNew(notificationUrl, store);
+    } catch (error) {
+      return failure(
+        appError(
+          'NetworkError',
+          'Failed to send remove notification',
           error instanceof Error ? error.message : String(error)
         )
       );
@@ -499,10 +567,34 @@ class SocialRepositoryImpl implements SocialRepository {
           // Check if it's acceptance notification and auto-process
           const isAcceptance = this.parseAcceptanceNotification(readResult.value.store, notificationUrl);
           if (isAcceptance) {
-            // Auto-update connection to accepted
-            await this.updateConnectionStatus(isAcceptance.actor, 'accepted');
-            // Delete notification
-            await this.deleteInboxNotification(notificationUrl);
+            // Write sender's connections.ttl before deleting notification.
+            // Failed writes retain notification for a later poll/retry.
+            const updateResult = await this.updateConnectionStatus(isAcceptance.actor, 'accepted');
+            if (!updateResult.ok) {
+              console.warn('Failed to persist accepted connection:', updateResult.error);
+              continue;
+            }
+
+            const deleteResult = await this.deleteInboxNotification(notificationUrl);
+            if (!deleteResult.ok) {
+              console.warn('Accepted connection saved but notification cleanup failed:', deleteResult.error);
+            }
+            continue;
+          }
+
+          // Check if it's remove notification and auto-process
+          const isRemove = this.parseRemoveNotification(readResult.value.store, notificationUrl);
+          if (isRemove) {
+            const removeResult = await this.removeConnection(isRemove.actor);
+            if (!removeResult.ok) {
+              console.warn('Failed to remove connection:', removeResult.error);
+              continue;
+            }
+
+            const deleteResult = await this.deleteInboxNotification(notificationUrl);
+            if (!deleteResult.ok) {
+              console.warn('Connection removed but notification cleanup failed:', deleteResult.error);
+            }
             continue;
           }
 
@@ -544,13 +636,34 @@ class SocialRepositoryImpl implements SocialRepository {
     return actor ? { actor } : null;
   }
 
-  private async updateConnectionStatus(peerWebId: string, status: ConnectionStatus): Promise<void> {
+  private parseRemoveNotification(store: Store, notificationUrl: string): { actor: string } | null {
+    const subject = `${notificationUrl}#notification`;
+    const subjectNode = namedNode(subject);
+
+    const getObject = (predicate: string): string | null => {
+      const quads = store.getQuads(subjectNode as any, namedNode(predicate) as any, null, null);
+      return quads[0]?.object.value ?? null;
+    };
+
+    const objectValue = getObject(`${AS}object`);
+    if (objectValue !== 'friend-removal') {
+      return null;
+    }
+
+    const actor = getObject(`${AS}actor`);
+    return actor ? { actor } : null;
+  }
+
+  private async updateConnectionStatus(peerWebId: string, status: ConnectionStatus): Promise<Result<void>> {
     const result = await this.getConnection(peerWebId);
     if (result.ok && result.value) {
       const connection = result.value;
       connection.status = status;
-      await this.updateConnection(connection);
+      return this.updateConnection(connection);
     }
+
+    if (!result.ok) return failure(result.error);
+    return failure(appError('NotFound', 'Outgoing friend connection not found'));
   }
 
   async listOutgoingRequests(): Promise<Result<FriendRequest[]>> {

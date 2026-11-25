@@ -22,6 +22,7 @@ export interface SocialRepository {
   // Friend Requests (inbox notifications)
   sendFriendRequest(toWebId: string, fromWebId: string): Promise<Result<void>>;
   sendAcceptanceNotification(toWebId: string, fromWebId: string): Promise<Result<void>>;
+  sendRemoveNotification(toWebId: string, fromWebId: string): Promise<Result<void>>;
   listIncomingRequests(): Promise<Result<FriendRequest[]>>;
   listOutgoingRequests(): Promise<Result<FriendRequest[]>>;
   deleteInboxNotification(notificationUrl: string): Promise<Result<void>>;

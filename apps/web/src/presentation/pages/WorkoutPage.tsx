@@ -168,13 +168,28 @@ export const WorkoutPage = () => {
         setShare(false);
         setSaved(false);
       });
-  }, [plan, selectedDay]);
+  // Plan contents can change when user adds an exercise. Do not reload and
+  // overwrite an in-progress session unless selected plan or date changed.
+  }, [plan?.id, selectedDay]);
 
-  const addExercise = () => {
+  const addExercise = async () => {
     if (!plan || !exerciseName.trim()) return;
     const nextPlans = plans.map((item) => item.id === plan.id ? { ...item, exercises: [...item.exercises, { name: exerciseName.trim(), targetSets: 3, targetReps: 10, targetWeight: 0 }] } : item);
-    setPlans(nextPlans); void persist(nextPlans, templates);
-    setExerciseName(''); setShowAddExercise(false);
+    try {
+      // Persist first. Do not claim exercise was added if Pod write fails.
+      const result = await (await container.getWorkoutRepository()).save(nextPlans, templates);
+      if (!result.ok) {
+        window.alert(`Gagal menyimpan workout option: ${result.error.message}`);
+        return;
+      }
+      setPlans(nextPlans);
+    } catch (error) {
+      console.error('[WorkoutPage] Add exercise error:', error);
+      window.alert('Gagal menyimpan workout option ke Pod.');
+      return;
+    }
+    setExerciseName('');
+    setShowAddExercise(false);
   };
 
   const totalVolume = useMemo(() => session ? calculateVolume(session) : 0, [session]);
@@ -367,6 +382,6 @@ export const WorkoutPage = () => {
       </div>
     </div>
         {plan && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}><Button variant="ghost" onClick={saveCurrentAsTemplate}>Simpan sebagai template</Button><Button variant="secondary" onClick={() => setShowAddExercise(true)}>+ Tambah workout option</Button></div>}
-    {(showCreate || showAddExercise) && <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', padding: 20, zIndex: 5 }}><Card style={{ width: 'min(100%, 460px)' }}><h2 style={{ margin: '0 0 5px', fontSize: 20 }}>{showCreate ? 'Tambah workout plan' : 'Tambah workout option'}</h2><p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>{showCreate ? 'Pakai template tersimpan atau mulai dari plan baru.' : `Tambahkan latihan ke ${plan?.name}.`}</p><div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{showCreate && <><div style={{ display: 'flex', gap: 8 }}><Button variant={createMode === 'new' ? 'primary' : 'secondary'} onClick={() => setCreateMode('new')}>Create new</Button><Button variant={createMode === 'template' ? 'primary' : 'secondary'} onClick={() => setCreateMode('template')} disabled={!templates.length}>Pakai template</Button></div>{createMode === 'template' && <Select label="Pilih template" value={templateId} onChange={(e) => setTemplateId(Number(e.target.value))}><option value="">Pilih template</option>{templates.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}<Input label="Nama plan" placeholder="Contoh: Full Body" value={planName} onChange={(e) => setPlanName(e.target.value)} autoFocus/></>}{!showCreate && <Input label="Nama workout" placeholder="Contoh: Squat" value={exerciseName} onChange={(e) => setExerciseName(e.target.value)} autoFocus/>}<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}><Button variant="ghost" onClick={() => { setShowCreate(false); setShowAddExercise(false); }}>Batal</Button><Button onClick={showCreate ? createPlan : addExercise} disabled={showCreate ? (!planName.trim() || (createMode === 'template' && !templateId)) : !exerciseName.trim()}>{showCreate ? 'Tambah plan' : 'Tambah workout'}</Button></div></div></Card></div>}
+    {(showCreate || showAddExercise) && <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', padding: 20, zIndex: 5 }} onClick={(e) => { if (e.target === e.currentTarget) { setShowCreate(false); setShowAddExercise(false); } }}><Card style={{ width: 'min(100%, 460px)' }}><h2 style={{ margin: '0 0 5px', fontSize: 20 }}>{showCreate ? 'Tambah workout plan' : 'Tambah workout option'}</h2><p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>{showCreate ? 'Pakai template tersimpan atau mulai dari plan baru.' : `Tambahkan latihan ke ${plan?.name}.`}</p><div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{showCreate && <><div style={{ display: 'flex', gap: 8 }}><Button variant={createMode === 'new' ? 'primary' : 'secondary'} onClick={() => setCreateMode('new')}>Create new</Button><Button variant={createMode === 'template' ? 'primary' : 'secondary'} onClick={() => setCreateMode('template')} disabled={!templates.length}>Pakai template</Button></div>{createMode === 'template' && <Select label="Pilih template" value={templateId} onChange={(e) => setTemplateId(Number(e.target.value))}><option value="">Pilih template</option>{templates.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}<Input label="Nama plan" placeholder="Contoh: Full Body" value={planName} onChange={(e) => setPlanName(e.target.value)} autoFocus/></>}{!showCreate && <Input label="Nama workout" placeholder="Contoh: Squat" value={exerciseName} onChange={(e) => setExerciseName(e.target.value)} autoFocus/>}<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}><Button variant="ghost" onClick={() => { setShowCreate(false); setShowAddExercise(false); }}>Batal</Button><Button onClick={showCreate ? createPlan : addExercise} disabled={showCreate ? (!planName.trim() || (createMode === 'template' && !templateId)) : !exerciseName.trim()}>{showCreate ? 'Tambah plan' : 'Tambah workout'}</Button></div></div></Card></div>}
   </PageWrapper></AppShell>;
 };

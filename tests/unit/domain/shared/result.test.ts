@@ -1,30 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { Result, AppError } from '../result';
+import { success, failure, appError } from '@/domain/shared/result';
+import type { Result, AppError } from '@/domain/shared/result';
 
 describe('Result Type', () => {
   it('should create ok result', () => {
-    const ok: Result<string> = { ok: true, value: 'hello' };
+    const ok: Result<string> = success('hello');
     expect(ok.ok).toBe(true);
-    expect(ok.value).toBe('hello');
+    if (ok.ok) {
+      expect(ok.value).toBe('hello');
+    }
   });
 
   it('should create error result', () => {
-    const error: Result<string> = { ok: false, error: new Error('test error') };
+    const error: Result<string> = failure(appError('Unknown', 'test error'));
     expect(error.ok).toBe(false);
-    expect(error.error.message).toBe('test error');
+    if (!error.ok) {
+      expect(error.error.message).toBe('test error');
+    }
   });
 });
 
-describe('AppError Class', () => {
-  it('should create AppError with code', () => {
-    const err = new AppError('TEST_ERROR', 'Test message', 400);
-    expect(err.code).toBe('TEST_ERROR');
+describe('AppError', () => {
+  it('should create AppError with type', () => {
+    const err = appError('ValidationFailed', 'Test message', { field: 'name' });
+    expect(err.type).toBe('ValidationFailed');
     expect(err.message).toBe('Test message');
-    expect(err.status).toBe(400);
+    expect(err.details).toEqual({ field: 'name' });
   });
 
-  it('should have proper name', () => {
-    const err = new AppError('TEST', 'msg');
-    expect(err.name).toBe('AppError');
+  it('should create AppError without details', () => {
+    const err = appError('NotFound', 'Resource not found');
+    expect(err.type).toBe('NotFound');
+    expect(err.message).toBe('Resource not found');
+    expect(err.details).toBeUndefined();
   });
 });

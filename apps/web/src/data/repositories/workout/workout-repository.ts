@@ -12,6 +12,9 @@ const FP = 'https://w3id.org/fitpod/ns#';
 export class WorkoutRepository {
   private root = '';
   private ready = false;
+  // Plans and templates share one Turtle resource. Serialize writes so each
+  // conditional ETag update sees the result of the prior write.
+  private saveQueue: Promise<unknown> = Promise.resolve();
   constructor(private io: SolidIo, private webId: string) {}
   private async ensureRoot() {
     if (this.ready) return;
@@ -20,7 +23,18 @@ export class WorkoutRepository {
     const store = new Store();
     await new Promise<void>((resolve) => new Parser({ baseIRI: this.webId }).parse(text, (_error, quad) => { if (quad) store.addQuad(quad); else resolve(); }));
     const storage = store.getQuads(this.webId, 'http://www.w3.org/ns/pim/space#storage', null, null)[0]?.object.value;
-    this.root = storage ?? `${new URL(this.webId).origin}/`;
+    if (storage) {
+      this.root = storage;
+    } else {
+      // Local CSS WebIDs are /<username>/profile/card#me. The Pod root is
+      // /<username>/, never the server host root.
+      const webIdUrl = new URL(this.webId);
+      const username = webIdUrl.pathname.split('/').filter(Boolean)[0];
+      this.root = username
+        ? `${webIdUrl.protocol}//${webIdUrl.host}/${username}/`
+        : `${webIdUrl.origin}/`;
+    }
+    console.log('[WorkoutRepository] Storage root:', this.root);
     this.ready = true;
   }
   private url() { return `${this.root}fitpod/routines/workouts.ttl`; }
@@ -53,8 +67,30 @@ export class WorkoutRepository {
     return { plans: items.filter((x) => x.kind === 'plan'), templates: items.filter((x) => x.kind === 'template') };
   }
   async save(plans: WorkoutPlan[], templates: WorkoutTemplate[]) {
-    await this.ensureRoot(); const url = this.url(); const store = await this.encode(url, plans, templates); const existing = await this.io.readTurtle(url);
-    return existing.ok && existing.value.etag ? this.io.putReplace(url, store, existing.value.etag) : this.io.putNew(url, store);
+    const write = async () => {
+      await this.ensureRoot();
+      const url = this.url();
+      const store = await this.encode(url, plans, templates);
+
+      // Retry once after a fresh ETag read if another tab/write won race.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const existing = await this.io.readTurtle(url);
+        const result = existing.ok && existing.value.etag
+          ? await this.io.putReplace(url, store, existing.value.etag)
+          : await this.io.putNew(url, store);
+
+        if (result.ok || result.error.type !== 'Conflict' || attempt === 1) {
+          return result;
+        }
+      }
+
+      throw new Error('Unreachable save state');
+    };
+
+    const result = this.saveQueue.then(write, write);
+    // Keep later saves working after a failed write.
+    this.saveQueue = result.then(() => undefined, () => undefined);
+    return result;
   }
   async saveSession(session: WorkoutSessionRecord) {
     await this.ensureRoot();

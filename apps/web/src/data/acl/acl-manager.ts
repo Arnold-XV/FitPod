@@ -499,6 +499,15 @@ class AclManagerImpl implements AclManager {
         namedNode(`${ACL}Append`)
       );
 
+      // CSS versions differ in their handling of acl:Append on containers.
+      // Write is needed as a compatibility fallback for authenticated agents
+      // to create an inbox notification resource. It never grants Control.
+      store.addQuad(
+        namedNode(publicAuthId),
+        namedNode(`${ACL}mode`),
+        namedNode(`${ACL}Write`)
+      );
+
       // Write ACL
       this.logger?.info('Writing ACL file', { aclUrl });
       const writeResult = await this.writeAcl(aclUrl, store);

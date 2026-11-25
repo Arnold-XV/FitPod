@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBodyMeasurement, serializeBodyMeasurement } from '../domain/body/entities';
+import { parseBodyMeasurement, serializeBodyMeasurement } from '@/domain/body/entities';
 
 describe('Body Measurement Domain', () => {
   it('should parse and serialize body measurement', () => {

@@ -58,6 +58,37 @@ export const SocialPage = () => {
     }
   }, [activeTab, webId]);
 
+  // Acceptance lives in sender's inbox. Poll it from every Social tab so a
+  // sender's connections.ttl is updated even when they never open Requests.
+  useEffect(() => {
+    if (!webId) return;
+    let disposed = false;
+
+    const syncAcceptedConnections = async () => {
+      try {
+        const inboxUseCase = await container.getListIncomingRequestsUseCase();
+        const inboxResult = await inboxUseCase();
+        if (!inboxResult.ok || disposed) return;
+
+        const connectionsUseCase = await container.getListConnectionsUseCase();
+        const connectionsResult = await connectionsUseCase();
+        if (!connectionsResult.ok || disposed) return;
+
+        setConnections(connectionsResult.value.filter(c => c.status === 'accepted'));
+        setOutgoingRequests(connectionsResult.value.filter(c => c.status === 'pending' && c.direction === 'outgoing'));
+      } catch (error) {
+        console.warn('[SocialPage] Acceptance sync failed:', error);
+      }
+    };
+
+    void syncAcceptedConnections();
+    const timer = window.setInterval(() => void syncAcceptedConnections(), 10_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [webId]);
+
   const loadFeed = async () => {
     setLoading(true);
     setError(null);
@@ -81,6 +112,10 @@ export const SocialPage = () => {
     setLoading(true);
     setError(null);
     try {
+      // First, process inbox to auto-accept any acceptance notifications
+      const inboxUseCase = await container.getListIncomingRequestsUseCase();
+      await inboxUseCase(); // This triggers auto-processing of acceptance notifications
+      
       const useCase = await container.getListConnectionsUseCase();
       const result = await useCase();
       
@@ -192,6 +227,42 @@ export const SocialPage = () => {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reject request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveConnection = async (peerWebId: string) => {
+    if (!window.confirm('Hapus teman ini? Data tidak dapat dikembalikan.')) return;
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const repo = await container.getSocialRepository();
+      
+      // Remove from local connections
+      const result = await repo.removeConnection(peerWebId);
+      if (!result.ok) {
+        setError(result.error.message);
+        setLoading(false);
+        return;
+      }
+
+      // Send remove notification to peer
+      if (webId) {
+        const notifyResult = await repo.sendRemoveNotification(peerWebId, webId);
+        if (!notifyResult.ok) {
+          console.warn('Failed to notify peer about removal:', notifyResult.error);
+          // Continue anyway - local removal succeeded
+        }
+      }
+
+      setSuccess('Teman berhasil dihapus');
+      await loadConnections(); // Refresh
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove connection');
     } finally {
       setLoading(false);
     }
@@ -374,6 +445,14 @@ export const SocialPage = () => {
                           Berteman sejak {conn.since}
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={loading}
+                        onClick={() => handleRemoveConnection(conn.peerWebId)}
+                      >
+                        Hapus
+                      </Button>
                     </div>
                   ))}
                 </div>

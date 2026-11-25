@@ -18,6 +18,9 @@ export const createGetSocialFeedUseCase = (deps: GetSocialFeedDeps) => {
     console.log('[GetSocialFeed] Starting feed fetch');
     deps.logger.info('Fetching social feed');
 
+    // Get current user's WebID from repository
+    const currentWebId = (deps.socialRepository as any)._webId;
+
     // Get list of accepted connections
     const connectionsResult = await deps.socialRepository.listConnections();
     if (!connectionsResult.ok) {
@@ -29,20 +32,41 @@ export const createGetSocialFeedUseCase = (deps: GetSocialFeedDeps) => {
     console.log('[GetSocialFeed] Friends found:', friends.length, friends.map(f => f.peerWebId));
     deps.logger.info('Found friends', { count: friends.length });
 
-    // Fetch shared activities from each friend in parallel
-    const feedPromises = friends.map(async (friend) => {
+    // Fetch shared activities from owner + each friend in parallel
+    const feedPromises: Promise<SharedActivity[]>[] = [];
+    
+    // Add owner's activities
+    if (currentWebId) {
+      console.log('[GetSocialFeed] Fetching own activities from:', currentWebId);
+      feedPromises.push(
+        deps.socialRepository.listSharedActivities(currentWebId).then(result => {
+          if (!result.ok) {
+            console.log('[GetSocialFeed] Failed to load own activities:', result.error);
+            return [];
+          }
+          console.log('[GetSocialFeed] Own activities:', result.value.length);
+          return result.value;
+        })
+      );
+    }
+    
+    // Add friends' activities
+    friends.forEach((friend) => {
       console.log('[GetSocialFeed] Fetching activities from:', friend.peerWebId);
-      const result = await deps.socialRepository.listSharedActivities(friend.peerWebId);
-      if (!result.ok) {
-        console.log('[GetSocialFeed] Failed for friend:', friend.peerWebId, result.error);
-        deps.logger.warn('Failed to fetch activities from friend', { 
-          friendWebId: friend.peerWebId, 
-          error: result.error 
-        });
-        return [];
-      }
-      console.log('[GetSocialFeed] Activities from', friend.peerWebId, ':', result.value.length);
-      return result.value;
+      feedPromises.push(
+        deps.socialRepository.listSharedActivities(friend.peerWebId).then(result => {
+          if (!result.ok) {
+            console.log('[GetSocialFeed] Failed for friend:', friend.peerWebId, result.error);
+            deps.logger.warn('Failed to fetch activities from friend', { 
+              friendWebId: friend.peerWebId, 
+              error: result.error 
+            });
+            return [];
+          }
+          console.log('[GetSocialFeed] Activities from', friend.peerWebId, ':', result.value.length);
+          return result.value;
+        })
+      );
     });
 
     const results = await Promise.all(feedPromises);

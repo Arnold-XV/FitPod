@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       '@fitpod/vocab': r('./packages/vocab/src/index.ts'),
       '@fitpod/shapes': r('./packages/shapes/src/index.ts'),
+      '@': r('./apps/web/src'),
     },
   },
   test: {

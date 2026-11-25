@@ -25,7 +25,7 @@
   "friend": "Teman",
   "activities": "Aktivitas",
   "workouts": "Latihan",
-  "nutrition": "Pangan",
+  "_nutrition_DISABLED": "Pangan",
   "progress": "Progress",
   "summary": "Ringkasan",
   "clearance": "Pengawasan Kesehatan",

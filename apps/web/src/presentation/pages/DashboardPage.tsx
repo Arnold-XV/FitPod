@@ -170,7 +170,8 @@ export const DashboardPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
             {[
               { label: 'Catat Latihan', to: '/workout', icon: <DumbbellIcon />, color: 'var(--secondary)' },
-              { label: 'Catat Makanan', to: '/nutrition', icon: <FlameIcon />, color: 'var(--accent)' },
+              // COMMENTED OUT - Module pangan dihapus
+              // { label: 'Catat Makanan', to: '/nutrition', icon: <FlameIcon />, color: 'var(--accent)' },
               { label: 'Ukur Tubuh', to: '/body', icon: <ScaleIcon />, color: 'var(--warning)' },
             ].map((action) => (
               <button

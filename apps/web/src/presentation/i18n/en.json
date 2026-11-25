@@ -25,7 +25,7 @@
   "friend": "Friend",
   "activities": "Activities",
   "workouts": "Workouts",
-  "nutrition": "Nutrition",
+  "_nutrition_DISABLED": "Nutrition",
   "progress": "Progress",
   "summary": "Summary",
   "clearance": "Health Clearance",

@@ -2,7 +2,7 @@
 
 Decentralized fitness tracking platform built on [Solid Pods](https://solidproject.org/). Stores health and fitness data as RDF in user's own Pod, providing data ownership and control without central database dependency.
 
-**Status:** In development. Core body measurement flow functional. Other domain modules scaffolded. Not production-ready.
+**Status:** Phase 1 & 2 complete (Nov 2026). Core body measurement flow functional with storage root discovery, multi-month listing, and retry/backoff. Other domain modules scaffolded. Not production-ready.
 
 ## Table of contents
 
@@ -29,17 +29,19 @@ Decentralized fitness tracking platform built on [Solid Pods](https://solidproje
   - [Testing](#testing)
   - [Known limitations](#known-limitations)
   - [Contributing](#contributing)
+  - [Recent updates](#recent-updates)
   - [License](#license)
 
 ## Features
 
 - **Solid-OIDC authentication** with DPoP tokens, Client ID Document support, session restoration
-- **Pod-native RDF storage** using Turtle format, conditional writes (`If-None-Match`, `If-Match`), `yyyy/mm` container sharding
+- **Pod-native RDF storage** using Turtle format, conditional writes (`If-None-Match`, `If-Match`), `yyyy/mm` container sharding, storage root discovery via `pim:storage`
 - **Body measurements** with full CRUD operations, domain validation, BMI calculation
 - **Layered architecture** (L1–L5) with dependency injection, explicit port/adapter boundaries
 - **Typed error handling** via `Result<T>` type and structured application errors
+- **Resilient HTTP layer** with exponential backoff, jitter, and configurable retry (429, 503, 504)
 - **Shared RDF packages** for FitPod vocabulary and SHACL shapes
-- **Domain modules** for body, nutrition, workout, health, access, professional, social concerns
+- **Domain modules** for body (implemented), nutrition, workout, health, access, professional, social (scaffolded)
 - **Unit and integration tests** with Vitest
 - **Internationalization** (English, Indonesian)
 
@@ -48,13 +50,14 @@ Decentralized fitness tracking platform built on [Solid Pods](https://solidproje
 | Area | Technology |
 | --- | --- |
 | Language | TypeScript 5.6 (strict mode) |
-| UI | React 18, React Router 7, Tailwind CSS 4 |
+| UI | React 18, React Router 7.18, Tailwind CSS 4 |
 | Build tool | Vite 6 |
 | Testing | Vitest |
 | RDF | N3.js, RDF/JS types |
 | Solid | `@inrupt/solid-client-authn-browser` |
-| Storage | IndexedDB (idb) |
+| Storage | IndexedDB (idb), Solid Pod RDF storage |
 | Package management | npm workspaces |
+| Concurrency control | p-limit |
 | Local development | Community Solid Server, Docker Compose |
 
 ## Repository structure
@@ -72,14 +75,19 @@ FitPod/
 │   ├── unit/                 Domain unit tests
 │   └── integration/          Integration test suite
 ├── tools/
-│   ├── solid-pod/            Local Community Solid Server setup
-│   └── seed/                 Pod seeding utilities
-├── solid-script/             Solid-related automation scripts
+│   ├── auth/                 Solid authentication utilities
+│   ├── css-config/           Community Solid Server config
+│   ├── seed/                 Pod seeding utilities
+│   └── solid-pod/            Local CSS server launcher
+├── solid-script/             Solid-related automation (placeholder)
+├── docs/                     Documentation, ADRs, and PRD
 ├── docker-compose.yml        Container orchestration config
-├── package.json              Root workspace configuration
-├── pnpm-workspace.yaml       Workspace definition
+├── package.json              Root workspace configuration (npm/pnpm)
+├── pnpm-workspace.yaml       Workspace definition (both managers supported)
 ├── tsconfig.json             Shared TypeScript configuration
-└── vitest.config.ts          Test configuration
+├── vitest.config.ts          Test configuration
+├── vercel.json               Vercel deployment config
+└── .env.example              Environment variable template
 ```
 
 Web application structure (layered architecture):
@@ -99,7 +107,7 @@ apps/web/src/
 ### Prerequisites
 
 - Node.js ≥18 (Node.js 20 LTS recommended)
-- npm ≥9
+- npm ≥9 (or pnpm - both supported)
 - Git
 - Solid Pod account or local Community Solid Server
 
@@ -129,15 +137,16 @@ npm run dev
 Application starts at <http://localhost:5173>.
 
 Current UI provides:
-1. Solid-OIDC login with solidcommunity.net (functional)
-2. WebID document verification
-3. Body measurement creation and storage to authenticated user's Pod
-4. Measurement listing from Pod
+1. Solid-OIDC login with configurable OIDC issuer
+2. WebID document verification and storage root discovery via `pim:storage`
+3. Body measurement creation with RDF serialization
+4. Multi-month measurement listing (default: 12 months, configurable)
+5. Session restoration and DPoP token handling
 
 **Authentication status:**
 - **solidcommunity.net** — fully functional
-- **login.inrupt.com** — not working yet
-- **Local CSS** — not working yet
+- **Local CSS (port 3001)** — functional via `npm run pod:start`
+- **login.inrupt.com** — requires testing with valid credentials
 
 **Client ID configuration:** `apps/web/public/client-id.jsonld` must match app origin. Default configured for `http://localhost:5173`.
 
@@ -168,15 +177,18 @@ Populate Pod with test body measurements:
    - Click **"Create token"**
    - Select your WebID and name your token, then submit
    - Copy the generated `id` and `secret`
-4. Create `.env.local`:
+4. Create `.env.local` (or copy from `.env.example`):
    ```bash
    SOLID_CLIENT_ID="your-client-id"
    SOLID_CLIENT_SECRET="your-client-secret"
    SOLID_OIDC_ISSUER="http://localhost:3001"
    ```
-5. Seed Pod:
+5. Seed Pod with measurements:
    ```bash
-   npm run seed
+   npm run seed                           # 10 normal measurements (default)
+   npm run seed -- --count=20             # 20 measurements
+   npm run seed -- --profile=edge         # Edge case measurements
+   npm run seed -- --profile=mixed        # Mixed profile
    ```
 
 Clear test data:
@@ -216,6 +228,7 @@ Run with `-w` flag or from `apps/web` directory:
 | `npm run lint -w fitpod-web` | Run ESLint |
 | `npm run typecheck -w fitpod-web` | Type-check web app |
 | `npm test -w fitpod-web` | Run web app tests |
+| `npm run test:ui -w fitpod-web` | Run tests with Vitest UI |
 
 ## Configuration
 
@@ -275,15 +288,19 @@ Cross-layer failures use `Result<T>` with typed `AppError` values. No thrown HTT
 
 **Serialization:** Turtle format with conditional requests (`If-None-Match`, `If-Match`) prevents lost updates
 
-**Storage structure:** Body measurements at `fitpod/body/yyyy/mm/<id>.ttl` for container size management
+**Storage structure:** 
+- Body measurements: `fitpod/body/yyyy/mm/<id>.ttl` (container sharding)
+- Storage root discovered via `pim:storage` predicate with host-based fallback
 
 **Provenance tracking:**
 - Trust levels: `self`, `measured`, `clinician`
 - Attributed WebID for data source
+- Timestamps for created/modified dates
 
 **Vocabulary management:**
 - SHACL shapes: `packages/shapes`
 - FitPod vocabulary: `packages/vocab`
+- PIM vocabulary: imported from `@fitpod/vocab`
 
 ## Testing
 
@@ -297,10 +314,21 @@ npm run test:watch       # Watch mode
 
 **Test coverage:**
 - Unit tests for domain logic: `tests/unit/`, `apps/web/src/domain`
-- Integration tests: `tests/integration/`
+- Integration tests: `tests/integration/` (in development)
 - Manual Pod integration scenarios documented in `apps/web/TESTING.md` and `apps/web/TEST_PLAN.md`
 
-Integration tests against live/local Solid Pod in active development.
+**Current test status:**
+- Type checking: ⚠️ 22 errors from old/unused files (`*.old` folders) and test import paths
+- Domain logic tests: ⚠️ Import path issues in `tests/unit/domain/*.test.ts`
+- Integration tests: 🚧 Require Docker Compose setup for automation
+- Manual testing: ✅ Verified on test page (`http://localhost:5173`)
+
+To run tests excluding old files:
+```bash
+npm test                    # Run all tests (may have import errors)
+npm run test:integration    # Run integration tests
+npm run typecheck           # Check types (shows errors from .old files)
+```
 
 ## Known limitations
 
@@ -308,33 +336,53 @@ Integration tests against live/local Solid Pod in active development.
 - SHACL validation defined but not enforced before writes
 - ACL bootstrap and privacy probes missing
 - Only body measurements fully implemented; other modules scaffolded
-- Measurement listing limited to current month
-- Storage root derived from WebID host, not discovered via `pim:storage`
+- Measurement listing hardcoded to 12 months (configurable via `list(monthsBack)`)
 
 **Infrastructure:**
-- No offline caching
-- No retry/backoff strategy
+- No offline caching (IndexedDB not implemented)
+- Retry/backoff implemented but limited to specific error codes (429, 503, 504)
 - Automated Pod integration tests incomplete
 
 **Development:**
-- Some workspace scripts are placeholders
-- Mid-refactor state may show pre-existing type errors
+- `expiry-scheduler` and `lookup-proxy` workspaces are placeholders
+- Old/unused code in `*.old` directories causes typecheck errors
+- Unit test import paths need correction in `tests/unit/domain/*.test.ts`
 
 ## Contributing
 
 **Workflow:**
 1. Branch from `main`
 2. Install: `npm install`
-3. Maintain layer boundaries and port/adapter pattern
-4. Add/update tests for behavioral changes
+3. Maintain layer boundaries and port/adapter pattern (enforced by ESLint)
+4. Add/update tests for behavioral changes (70%+ coverage target on L3)
 5. Verify: `npm run typecheck && npm test`
 6. PR must describe motivation, scope, verification steps
 
+**Architecture documentation:**
+- Phase 1 & 2 improvements: `docs/IMPLEMENTATION_COMPLETE.md`
+- Improvement plan: `docs/IMPROVEMENTV01.md`
+- ADRs: `docs/adr/`
+- Project requirements: `docs/PRD.md`
+- Solid implementation notes: `docs/SOLIDIMPLEMENTATION.md`
+
 **Do not commit:**
-- Pod credentials
-- Access tokens
-- Environment files
-- Local Pod data (`.data/`)
+- Pod credentials or access tokens
+- Environment files (`.env`, `.env.local`, `.env.*`)
+- Local Pod data (`.data/`, `data/`)
+- Generated client credentials
+
+## Recent updates
+
+**Phase 1 & 2 (Nov 2026):**
+- ✅ Storage root discovery via `pim:storage` with fallback
+- ✅ Multi-month measurement listing (default 12 months)
+- ✅ Exponential backoff with jitter for HTTP retries
+- ✅ Async repository initialization in DI container
+- ✅ Seed utility with normal/edge/mixed profiles
+- ✅ Local CSS server launcher script
+- ✅ Docker Compose configuration
+
+See `docs/IMPLEMENTATION_COMPLETE.md` for detailed changes.
 
 ## License
 

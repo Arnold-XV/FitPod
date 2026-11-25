@@ -1,55 +1,75 @@
 /**
- * Workout ports and adapters (L3 Domain -> L2 Repository)
+ * Workout ports (L3)
+ * AR-04: Interface definitions, no implementation
  */
 
-import type { WorkoutSession, ExerciseBlock } from './entities';
-import type { WorkoutSessionRecord } from '@/data/repositories/workout/workout-repository';
+import type { Result } from '../shared/result';
+import type { 
+  WorkoutSession, 
+  Routine, 
+  CustomExercise, 
+  ProgressRecords, 
+  BundledExercise, 
+  SessionDraft 
+} from './entities';
 
-/**
- * Convert WorkoutSession (domain) to WorkoutSessionRecord (repository)
- */
-export const toSessionRecord = (session: WorkoutSession, planId: number, planName: string, shared: boolean): WorkoutSessionRecord => {
-  const sets: Record<string, { reps: string; weight: string }[]> = {};
-  
-  session.exerciseBlocks.forEach((block) => {
-    sets[block.exerciseName] = block.sets.map((set) => ({
-      reps: String(set.reps),
-      weight: String(set.weightKg),
-    }));
-  });
+// ══════════════════════════════════════════════════
+// Repository Ports
+// ══════════════════════════════════════════════════
 
-  return {
-    id: session.id,
-    date: session.date.toISOString().slice(0, 10),
-    planId,
-    planName,
-    day: session.date.toISOString().slice(0, 10),
-    sets,
-    shared,
-  };
-};
+export interface SessionRepository {
+  add(session: WorkoutSession): Promise<Result<void>>;
+  update(session: WorkoutSession): Promise<Result<void>>;
+  delete(id: string): Promise<Result<void>>;
+  get(id: string): Promise<Result<WorkoutSession>>;
+  list(range?: { start: string; end: string }): Promise<Result<WorkoutSession[]>>;
+}
 
-/**
- * Convert WorkoutSessionRecord (repository) to WorkoutSession (domain)
- */
-export const fromSessionRecord = (record: WorkoutSessionRecord, startTime?: Date, endTime?: Date): WorkoutSession => {
-  const date = new Date(record.date);
-  
-  const exerciseBlocks: ExerciseBlock[] = Object.entries(record.sets).map(([exerciseName, sets], index) => ({
-    position: index + 1,
-    exerciseName,
-    sets: sets.map((set, idx) => ({
-      setIndex: idx + 1,
-      weightKg: Number(set.weight) || 0,
-      reps: Number(set.reps) || 0,
-    })),
-  }));
+export interface RoutineRepository {
+  add(routine: Routine): Promise<Result<void>>;
+  update(routine: Routine): Promise<Result<void>>;
+  delete(id: string): Promise<Result<void>>;
+  get(id: string): Promise<Result<Routine>>;
+  list(): Promise<Result<Routine[]>>;
+}
 
-  return {
-    id: record.id,
-    date,
-    startTime: startTime || date,
-    endTime: endTime || date,
-    exerciseBlocks,
-  };
-};
+export interface CustomExerciseRepository {
+  add(exercise: CustomExercise): Promise<Result<void>>;
+  update(exercise: CustomExercise): Promise<Result<void>>;
+  delete(id: string): Promise<Result<void>>;
+  get(id: string): Promise<Result<CustomExercise>>;
+  list(): Promise<Result<CustomExercise[]>>;
+}
+
+export interface RecordsRepository {
+  get(): Promise<Result<ProgressRecords>>;
+  rebuild(sessions: WorkoutSession[]): Promise<Result<void>>;
+}
+
+// ══════════════════════════════════════════════════
+// Infrastructure Ports
+// ══════════════════════════════════════════════════
+
+export interface ExerciseLibrary {
+  load(): Promise<BundledExercise[]>;
+  search(query: string, limit?: number): BundledExercise[];
+  getById(id: string): BundledExercise | null;
+  filter(criteria: {
+    equipment?: string;
+    category?: string;
+    bodyPart?: string;
+    primaryMuscle?: string;
+  }, limit?: number): BundledExercise[];
+  getUniqueEquipment(): string[];
+  getUniqueCategories(): string[];
+  getUniqueBodyParts(): string[];
+  isLoaded(): boolean;
+  count(): number;
+}
+
+export interface DraftStore {
+  save(draft: SessionDraft): Promise<void>;
+  load(): Promise<SessionDraft | null>;
+  clear(): Promise<void>;
+  hasDraft(): Promise<boolean>;
+}

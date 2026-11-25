@@ -74,8 +74,17 @@ class SocialRepositoryImpl implements SocialRepository {
       const storageQuads = store.getQuads(webIdNode as any, pimStoragePredicate as any, null, null);
 
       if (storageQuads.length > 0) {
-        this._storageRoot = storageQuads[0].object.value;
-        console.log(`[SocialRepository] Discovered storage root: ${this._storageRoot}`);
+        const discoveredRoot = storageQuads[0].object.value;
+        // Validate: if storage root contains /profile/, it's wrong for solidcommunity.net
+        if (discoveredRoot.includes('/profile/')) {
+          console.warn(`[SocialRepository] Invalid storage root with /profile/: ${discoveredRoot}, using fallback`);
+          const url = new URL(this._webId);
+          this._storageRoot = `${url.protocol}//${url.host}/`;
+          console.log(`[SocialRepository] Corrected storage root: ${this._storageRoot}`);
+        } else {
+          this._storageRoot = discoveredRoot;
+          console.log(`[SocialRepository] Discovered storage root from pim:storage: ${this._storageRoot}`);
+        }
       } else {
         const url = new URL(this._webId);
         const pathParts = url.pathname.split('/').filter(Boolean);
@@ -84,7 +93,7 @@ class SocialRepositoryImpl implements SocialRepository {
         this._storageRoot = username
           ? `${url.protocol}//${url.host}/${username}/`
           : `${url.protocol}//${url.host}/`;
-        console.log(`[SocialRepository] Fallback storage root: ${this._storageRoot}`);
+        console.log(`[SocialRepository] Fallback storage root (skipped profile): ${this._storageRoot}`, { pathParts, username });
       }
     } catch (error) {
       console.warn(`[SocialRepository] Failed to discover storage root: ${error}`);

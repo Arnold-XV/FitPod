@@ -331,10 +331,13 @@ export const WorkoutPage = () => {
     
     try {
       const sessionId = `${selectedDay}-${plan.id}`;
+      console.log('[WorkoutPage] Deleting session:', sessionId);
       
       // Delete from Pod
       const repo = await container.getWorkoutRepository();
       const result = await repo.deleteSession(sessionId);
+      
+      console.log('[WorkoutPage] Delete result:', result);
       
       if (!result.ok) {
         window.alert(`Gagal menghapus riwayat sesi: ${result.error.message}`);
@@ -355,6 +358,7 @@ export const WorkoutPage = () => {
       setShare(false);
       window.alert('Riwayat sesi berhasil dihapus.');
     } catch (error) {
+      console.error('[WorkoutPage] Delete error:', error);
       window.alert('Gagal menghapus riwayat sesi.');
     }
   };

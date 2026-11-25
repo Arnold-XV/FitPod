@@ -29,8 +29,7 @@
     "apps/web/src/**/*.tsx",
     "packages/**/*.ts",
     "tools/**/*.ts",
-    "tests/**/*.ts",
     "vitest.config.ts"
   ],
-  "exclude": ["**/node_modules", "**/dist", "**/.data"]
+  "exclude": ["**/node_modules", "**/dist", "**/.data", "**/*.old"]
 }

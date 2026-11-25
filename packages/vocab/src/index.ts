@@ -117,6 +117,28 @@ export const FP_NAME = fp('name');
 export const FP_NOTE = fp('note');
 export const FP_SCHEMA_VERSION = fp('schemaVersion');
 
+// ══════════════════════════════════════════════════
+// Access Control Module Vocabulary
+// ══════════════════════════════════════════════════
+
+// Access Grant
+export const FP_ACCESS_GRANT = fp('AccessGrant');
+export const FP_GRANTED_TO = fp('grantedTo');
+export const FP_GRANTED_BY = fp('grantedBy');
+export const FP_SCOPE = fp('scope');
+export const FP_PERMISSIONS = fp('permissions');
+export const FP_EXPIRES_AT = fp('expiresAt');
+export const FP_CREATED_AT = fp('createdAt');
+export const FP_REVOKED_AT = fp('revokedAt');
+
+// Access Request
+export const FP_ACCESS_REQUEST = fp('AccessRequest');
+export const FP_REQUESTED_BY = fp('requestedBy');
+export const FP_REQUESTED_FROM = fp('requestedFrom');
+export const FP_STATUS = fp('status');
+export const FP_MESSAGE = fp('message');
+export const FP_RESPONDED_AT = fp('respondedAt');
+
 /** Prefix map used when serialising Turtle. */
 export const PREFIXES: Record<string, string> = {
   fp: FP,

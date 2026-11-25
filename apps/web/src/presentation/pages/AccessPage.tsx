@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { EmptyState } from '../components/ui/EmptyState';
+import { container } from '@/app/container';
+import type { AccessGrant, AccessScope } from '@/domain/access/entities';
 
 const ShieldIcon = () => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -39,6 +41,63 @@ export const AccessPage = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [duration, setDuration] = useState('1m');
   const [customDate, setCustomDate] = useState('');
+  const [grants, setGrants] = useState<AccessGrant[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    loadGrants();
+  }, []);
+
+  const loadGrants = async () => {
+    const useCase = await container.getListGrantsUseCase();
+    const result = await useCase();
+    if (result.ok) {
+      setGrants(result.value);
+    }
+  };
+
+  const calculateExpiry = (dur: string, customD: string): string | undefined => {
+    if (dur === 'custom') return customD ? new Date(customD).toISOString() : undefined;
+    const now = new Date();
+    if (dur === '1m') now.setMonth(now.getMonth() + 1);
+    else if (dur === '3m') now.setMonth(now.getMonth() + 3);
+    else if (dur === '6m') now.setMonth(now.getMonth() + 6);
+    return now.toISOString();
+  };
+
+  const handleGrantAccess = async () => {
+    setLoading(true);
+    setError('');
+    
+    const useCase = await container.getGrantAccessUseCase();
+    const result = await useCase({
+      professionalWebId: trainerWebId,
+      scope: selectedCategories as AccessScope[],
+      permissions: 'read',
+      expiresAt: calculateExpiry(duration, customDate),
+    });
+    
+    if (result.ok) {
+      await loadGrants();
+      setTrainerWebId('');
+      setSelectedCategories([]);
+      setDuration('1m');
+      setCustomDate('');
+    } else {
+      setError(result.error.message);
+    }
+    
+    setLoading(false);
+  };
+
+  const handleRevoke = async (grantId: string) => {
+    const useCase = await container.getRevokeAccessUseCase();
+    const result = await useCase(grantId);
+    if (result.ok) {
+      await loadGrants();
+    }
+  };
 
   const toggleCategory = (id: string) => {
     setSelectedCategories((prev) =>
@@ -158,10 +217,16 @@ export const AccessPage = () => {
               <Button
                 variant="primary"
                 fullWidth
-                disabled={!trainerWebId.trim() || selectedCategories.length === 0}
+                disabled={!trainerWebId.trim() || selectedCategories.length === 0 || loading}
+                onClick={handleGrantAccess}
               >
-                Berikan Akses
+                {loading ? 'Memproses...' : 'Berikan Akses'}
               </Button>
+              {error && (
+                <p style={{ fontSize: '12px', color: 'var(--error)', marginTop: '8px' }}>
+                  {error}
+                </p>
+              )}
               <p style={{ fontSize: '11px', color: 'var(--muted)' }}>
                 Fitur pemberian akses via Pod ACL segera hadir.
               </p>
@@ -173,11 +238,51 @@ export const AccessPage = () => {
             <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)', marginBottom: '20px' }}>
               Akses Aktif
             </h3>
-            <EmptyState
-              icon={<ShieldIcon />}
-              title="Belum ada akses diberikan"
-              description="Daftar akses aktif kepada pelatih atau profesional kesehatan akan muncul di sini."
-            />
+            {grants.length === 0 ? (
+              <EmptyState
+                icon={<ShieldIcon />}
+                title="Belum ada akses diberikan"
+                description="Daftar akses aktif kepada pelatih atau profesional kesehatan akan muncul di sini."
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {grants.map((grant) => (
+                  <div
+                    key={grant.id}
+                    style={{
+                      padding: '14px 16px',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
+                        {grant.grantedTo}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
+                        Akses: {grant.scope.join(', ')} • {grant.permissions}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>
+                        {grant.expiresAt
+                          ? `Kadaluarsa: ${new Date(grant.expiresAt).toLocaleDateString('id-ID')}`
+                          : 'Tanpa batas waktu'}
+                      </div>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleRevoke(grant.id)}
+                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                    >
+                      Cabut
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       </PageWrapper>

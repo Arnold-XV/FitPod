@@ -15,8 +15,12 @@ import type { BodyRepository } from '@/domain/body/ports';
 import { createAccessRepository } from '@/data/repositories/access/access-repository';
 import { createProfessionalService } from '@/data/repositories/professional/professional-service';
 import { createClientRegistry, type ClientRegistry } from '@/data/repositories/professional/client-registry';
+import { createParQRepository } from '@/data/repositories/health/parq-repository';
+import { createRecommendationRepository } from '@/data/repositories/professional/recommendation-repository';
+import { createClientRecommendationService } from '@/data/repositories/client/client-recommendation-service';
 import type { AccessRepository } from '@/domain/access/ports';
-import type { ProfessionalService } from '@/domain/professional/ports';
+import type { ProfessionalService, RecommendationRepository, ClientRecommendationService } from '@/domain/professional/ports';
+import type { ParQRepository } from '@/domain/health/ports';
 
 // Use cases
 import { createLoginUseCase } from '@/application/auth/login';
@@ -29,6 +33,9 @@ import { createRevokeAccessUseCase } from '@/application/access/revoke-access';
 import { createListClientsUseCase } from '@/application/professional/list-clients';
 import { createGetClientSummaryUseCase } from '@/application/professional/get-client-summary';
 import { createRegisterClientUseCase } from '@/application/professional/register-client';
+import { createSaveParQResponseUseCase } from '@/application/health/save-parq-response';
+import { createCreateRecommendationUseCase } from '@/application/professional/create-recommendation';
+import { createApplyRecommendationUseCase } from '@/application/client/apply-recommendation';
 
 import type { Clock } from '@/domain/shared/clock';
 import type { IdGenerator } from '@/domain/shared/id-generator';
@@ -51,6 +58,9 @@ export class AppContainer {
   private _accessRepository?: AccessRepository;
   private _professionalService?: ProfessionalService;
   private _clientRegistry?: ClientRegistry;
+  private _parqRepository?: ParQRepository;
+  private _recommendationRepository?: RecommendationRepository;
+  private _clientRecommendationService?: ClientRecommendationService;
 
   // Lazy initialization
   get authSession(): AuthSession {
@@ -186,6 +196,58 @@ export class AppContainer {
     return this._clientRegistry;
   }
 
+  async getParQRepository(): Promise<ParQRepository> {
+    if (!this._parqRepository) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create PAR-Q repository');
+      }
+
+      this._parqRepository = createParQRepository({
+        solidIo: this.solidIo,
+        storageRoot: '',
+      });
+
+      this._parqRepository.setWebId(webId);
+      await this._parqRepository.ensureStorageRoot();
+    }
+    return this._parqRepository;
+  }
+
+  async getRecommendationRepository(): Promise<RecommendationRepository> {
+    if (!this._recommendationRepository) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create recommendation repository');
+      }
+
+      this._recommendationRepository = createRecommendationRepository({
+        solidIo: this.solidIo,
+        storageRoot: '',
+      });
+
+      this._recommendationRepository.setWebId(webId);
+      await this._recommendationRepository.ensureStorageRoot();
+    }
+    return this._recommendationRepository;
+  }
+
+  async getClientRecommendationService(): Promise<ClientRecommendationService> {
+    if (!this._clientRecommendationService) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create client recommendation service');
+      }
+
+      this._clientRecommendationService = createClientRecommendationService({
+        solidIo: this.solidIo,
+      });
+
+      this._clientRecommendationService.setWebId(webId);
+    }
+    return this._clientRecommendationService;
+  }
+
   // Use Cases (cached after first access)
   private _loginUseCase?: ReturnType<typeof createLoginUseCase>;
   private _logoutUseCase?: ReturnType<typeof createLogoutUseCase>;
@@ -197,6 +259,9 @@ export class AppContainer {
   private _listClientsUseCase?: ReturnType<typeof createListClientsUseCase>;
   private _getClientSummaryUseCase?: ReturnType<typeof createGetClientSummaryUseCase>;
   private _registerClientUseCase?: ReturnType<typeof createRegisterClientUseCase>;
+  private _saveParQResponseUseCase?: ReturnType<typeof createSaveParQResponseUseCase>;
+  private _createRecommendationUseCase?: ReturnType<typeof createCreateRecommendationUseCase>;
+  private _applyRecommendationUseCase?: ReturnType<typeof createApplyRecommendationUseCase>;
 
   async getLoginUseCase(): Promise<ReturnType<typeof createLoginUseCase>> {
     if (!this._loginUseCase) {
@@ -314,6 +379,58 @@ export class AppContainer {
     return this._registerClientUseCase;
   }
 
+  async getSaveParQResponseUseCase(): Promise<ReturnType<typeof createSaveParQResponseUseCase>> {
+    if (!this._saveParQResponseUseCase) {
+      const parqRepository = await this.getParQRepository();
+      this._saveParQResponseUseCase = createSaveParQResponseUseCase({
+        parqRepository,
+        clock: this.clock,
+        idGenerator: this.idGenerator,
+        logger: this.logger,
+      });
+    }
+    return this._saveParQResponseUseCase;
+  }
+
+  async getCreateRecommendationUseCase(): Promise<ReturnType<typeof createCreateRecommendationUseCase>> {
+    if (!this._createRecommendationUseCase) {
+      const recommendationRepository = await this.getRecommendationRepository();
+      const webId = this.authSession.webId;
+      if (!webId) throw new Error('Not authenticated');
+
+      this._createRecommendationUseCase = createCreateRecommendationUseCase({
+        recommendationRepository,
+        clock: this.clock,
+        idGenerator: this.idGenerator,
+        logger: this.logger,
+        currentWebId: webId,
+      });
+    }
+    return this._createRecommendationUseCase;
+  }
+
+  async getApplyRecommendationUseCase(): Promise<ReturnType<typeof createApplyRecommendationUseCase>> {
+    if (!this._applyRecommendationUseCase) {
+      const clientRecommendationService = await this.getClientRecommendationService();
+      this._applyRecommendationUseCase = createApplyRecommendationUseCase({
+        clientRecommendationService,
+        logger: this.logger,
+      });
+    }
+    return this._applyRecommendationUseCase;
+  }
+
+  async getListReceivedRecommendationsUseCase() {
+    const service = await this.getClientRecommendationService();
+    return () => service.listReceivedRecommendations();
+  }
+
+  async getRejectRecommendationUseCase() {
+    const service = await this.getClientRecommendationService();
+    return (input: { recommendationId: string; professionalWebId: string }) => 
+      service.rejectRecommendation(input.recommendationId, input.professionalWebId);
+  }
+
   /**
    * Reset repositories when user changes
    * Called after logout
@@ -323,6 +440,9 @@ export class AppContainer {
     this._accessRepository = undefined;
     this._professionalService = undefined;
     this._clientRegistry = undefined;
+    this._parqRepository = undefined;
+    this._recommendationRepository = undefined;
+    this._clientRecommendationService = undefined;
     this._solidIo = undefined;
     this._loginUseCase = undefined;
     this._logoutUseCase = undefined;
@@ -334,6 +454,9 @@ export class AppContainer {
     this._listClientsUseCase = undefined;
     this._getClientSummaryUseCase = undefined;
     this._registerClientUseCase = undefined;
+    this._saveParQResponseUseCase = undefined;
+    this._createRecommendationUseCase = undefined;
+    this._applyRecommendationUseCase = undefined;
   }
 }
 

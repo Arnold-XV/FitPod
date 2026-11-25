@@ -10,7 +10,7 @@ export interface AccessGrant {
   schemaVersion: number;
 }
 
-export type AccessScope = 'body' | 'workout' | 'nutrition' | 'health';
+export type AccessScope = 'body' | 'workout' | 'nutrition' | 'health' | 'parq';
 
 export type AccessPermission = 'read' | 'readwrite';
 

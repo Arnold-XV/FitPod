@@ -24,9 +24,9 @@ const AlertIcon = () => (
 
 const dataCategories = [
   { id: 'body', label: 'Data Tubuh (berat, tinggi, BMI)' },
-  { id: 'routines', label: 'Rutinitas Latihan' },
-  { id: 'sessions', label: 'Sesi Latihan' },
-  { id: 'health', label: 'Ringkasan Kesehatan (trainer-summary)' },
+  { id: 'workout', label: 'Rutinitas Latihan' },
+  { id: 'parq', label: 'PAR-Q+ Response' },
+  { id: 'health', label: 'Ringkasan Kesehatan' },
 ];
 
 const durations = [

@@ -53,6 +53,7 @@ export const scopeToContainerPaths = (
       case 'workout': return `${basePath}/workout/`;
       case 'nutrition': return `${basePath}/nutrition/`;
       case 'health': return `${basePath}/health/`;
+      case 'parq': return `${basePath}/health/parq/`; // Specific PAR-Q+ container
     }
   });
 };

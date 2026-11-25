@@ -288,6 +288,17 @@ export const createProfessionalService = (
       });
     },
 
+    async getClientDetail(clientWebId: string): Promise<Result<import('@/domain/professional/entities').ClientDetail>> {
+      // For MVP: return basic summary as ClientDetail
+      const summaryResult = await this.getClientSummary(clientWebId);
+      if (!summaryResult.ok) return summaryResult;
+      
+      return success({
+        ...summaryResult.value,
+        // TODO: Add PAR-Q+ response, current routines, recommendations
+      });
+    },
+
     setWebId(newWebId: string): void {
       webId = newWebId;
     },

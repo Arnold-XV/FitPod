@@ -139,6 +139,41 @@ export const FP_STATUS = fp('status');
 export const FP_MESSAGE = fp('message');
 export const FP_RESPONDED_AT = fp('respondedAt');
 
+// ══════════════════════════════════════════════════
+// PAR-Q+ Vocabulary
+// ══════════════════════════════════════════════════
+
+export const FP_PARQ_RESPONSE = fp('ParQResponse');
+export const FP_Q1 = fp('q1');
+export const FP_Q2 = fp('q2');
+export const FP_Q3 = fp('q3');
+export const FP_Q4 = fp('q4');
+export const FP_Q5 = fp('q5');
+export const FP_Q6 = fp('q6');
+export const FP_Q7 = fp('q7');
+export const FP_FOLLOW_UP_COMPLETED = fp('followUpCompleted');
+export const FP_PROFESSIONAL_CLEARANCE = fp('professionalClearance');
+export const FP_CLEARED = fp('cleared');
+export const FP_CLEARED_BY = fp('clearedBy');
+export const FP_CLEARED_AT = fp('clearedAt');
+
+// ══════════════════════════════════════════════════
+// Routine Recommendation Vocabulary
+// ══════════════════════════════════════════════════
+
+export const FP_ROUTINE_RECOMMENDATION = fp('RoutineRecommendation');
+export const FP_CLIENT_WEB_ID = fp('clientWebId');
+export const FP_PROFESSIONAL_WEB_ID = fp('professionalWebId');
+export const FP_APPLIED_AT = fp('appliedAt');
+export const FP_REJECTED_AT = fp('rejectedAt');
+export const FP_DAY_ROUTINE = fp('dayRoutine');
+
+export const FP_DAY_ROUTINE_TYPE = fp('DayRoutine');
+export const FP_DAY_OF_WEEK = fp('dayOfWeek');
+
+export const FP_EXERCISE_TEMPLATE = fp('exerciseTemplate');
+export const FP_EXERCISE_TEMPLATE_TYPE = fp('ExerciseTemplate');
+
 /** Prefix map used when serialising Turtle. */
 export const PREFIXES: Record<string, string> = {
   fp: FP,

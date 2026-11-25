@@ -331,8 +331,17 @@ export const WorkoutPage = () => {
     
     try {
       const sessionId = `${selectedDay}-${plan.id}`;
-      // Delete from Pod (need to add delete method to repository)
-      // For now, just reset local state
+      
+      // Delete from Pod
+      const repo = await container.getWorkoutRepository();
+      const result = await repo.deleteSession(sessionId);
+      
+      if (!result.ok) {
+        window.alert(`Gagal menghapus riwayat sesi: ${result.error.message}`);
+        return;
+      }
+      
+      // Reset local state
       const newSession: WorkoutSession = {
         id: sessionId,
         date: selectedDay,

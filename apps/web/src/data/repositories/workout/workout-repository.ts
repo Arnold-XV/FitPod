@@ -1,5 +1,6 @@
 import { DataFactory, Parser, Store } from 'n3';
 import type { SolidIo } from '@/data/solid/solid-io';
+import type { Result } from '@/domain/shared/result';
 
 export type WorkoutExercise = { name: string; targetSets: number; targetReps: number; targetWeight: number };
 export type WorkoutPlan = { id: number; name: string; days: string; exercises: WorkoutExercise[] };
@@ -170,6 +171,12 @@ export class WorkoutRepository {
     const parsed = json ? JSON.parse(json) : null;
     console.log('[WorkoutRepository] Parsed session:', parsed);
     return parsed;
+  }
+  async deleteSession(sessionId: string): Promise<Result<void>> {
+    await this.ensureRoot();
+    const url = `${this.root}fitpod/sessions/${sessionId}.ttl`;
+    console.log('[WorkoutRepository] Deleting session:', { sessionId, url });
+    return await this.io.deleteResource(url);
   }
 }
 

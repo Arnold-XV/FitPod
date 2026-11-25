@@ -911,6 +911,37 @@ class SocialRepositoryImpl implements SocialRepository {
 
   private async ensureSharedContainerExists(containerUrl: string): Promise<Result<void>> {
     try {
+      // First ensure parent containers exist (fitpod/ and fitpod/social/)
+      const url = new URL(containerUrl);
+      const pathParts = url.pathname.split('/').filter(p => p);
+      
+      // Build parent containers incrementally
+      let currentPath = `${url.protocol}//${url.host}/`;
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        currentPath += `${pathParts[i]}/`;
+        const checkResponse = await this.solidIo.getHttp().authed(currentPath, {
+          method: 'HEAD',
+        });
+        
+        if (!checkResponse.ok && checkResponse.status === 404) {
+          const createResponse = await this.solidIo.getHttp().authed(currentPath, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'text/turtle',
+              'Link': '<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"',
+            },
+            body: '',
+          });
+          
+          if (!createResponse.ok) {
+            console.warn(`[SocialRepository] Failed to create parent container: ${currentPath}`, createResponse.status);
+          } else {
+            console.log(`[SocialRepository] Created parent container: ${currentPath}`);
+          }
+        }
+      }
+      
+      // Now check/create the target container
       const response = await this.solidIo.getHttp().authed(containerUrl, {
         method: 'HEAD',
       });
@@ -936,6 +967,7 @@ class SocialRepositoryImpl implements SocialRepository {
           );
         }
 
+        console.log(`[SocialRepository] Created shared container: ${containerUrl}`);
         return success(undefined);
       }
 

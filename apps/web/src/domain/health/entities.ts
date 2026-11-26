@@ -33,13 +33,5 @@ export const validateParQResponse = (
   if (!parq.date) errors.push('date required');
   if (!parq.responses) errors.push('responses required');
   
-  // Check if follow-up needed
-  if (parq.responses) {
-    const needsFollowUp = Object.values(parq.responses).some(v => v === true);
-    if (needsFollowUp && !parq.followUpCompleted) {
-      errors.push('Follow-up required for safety');
-    }
-  }
-  
   return { valid: errors.length === 0, errors };
 };

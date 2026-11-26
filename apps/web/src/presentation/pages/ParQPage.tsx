@@ -19,17 +19,9 @@ const QUESTIONS = [
 export const ParQPage = () => {
   const navigate = useNavigate();
   const [responses, setResponses] = useState<boolean[]>(new Array(7).fill(false));
-  const [followUpCompleted, setFollowUpCompleted] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const hasYes = responses.some(r => r);
-
   const handleSubmit = async () => {
-    if (hasYes && !followUpCompleted) {
-      alert('Anda menjawab Ya pada salah satu pertanyaan. Silakan konsultasikan dengan profesional kesehatan sebelum melanjutkan.');
-      return;
-    }
-
     setSaving(true);
 
     const useCase = await container.getSaveParQResponseUseCase();
@@ -43,7 +35,7 @@ export const ParQPage = () => {
         q6: responses[5] ?? false,
         q7: responses[6] ?? false,
       },
-      followUpCompleted,
+      followUpCompleted: false,
     });
 
     if (result.ok) {
@@ -122,43 +114,27 @@ export const ParQPage = () => {
             </div>
           ))}
 
-          {hasYes && (
-            <div
-              style={{
-                padding: '16px',
-                background: 'rgba(234,179,8,0.1)',
-                border: '1px solid rgba(234,179,8,0.3)',
-                borderRadius: '8px',
-                marginTop: '16px',
-              }}
-            >
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
-                Tindak Lanjut Diperlukan
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '12px' }}>
-                Karena Anda menjawab Ya pada salah satu pertanyaan, disarankan untuk berkonsultasi
-                dengan profesional kesehatan sebelum memulai program latihan.
-              </p>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={followUpCompleted}
-                  onChange={(e) => setFollowUpCompleted(e.target.checked)}
-                />
-                <span style={{ fontSize: '13px' }}>
-                  Saya telah berkonsultasi dengan profesional kesehatan
-                </span>
-              </label>
-            </div>
-          )}
+          <div
+            style={{
+              padding: '16px',
+              background: 'rgba(59,130,246,0.1)',
+              border: '1px solid rgba(59,130,246,0.3)',
+              borderRadius: '8px',
+              marginTop: '16px',
+            }}
+          >
+            <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+              PAR-Q+ adalah alat skrining kebugaran, bukan diagnosis medis. Selalu konsultasikan dengan tenaga kesehatan profesional untuk penilaian kesehatan yang komprehensif.
+            </p>
+          </div>
 
           <div style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
             <Button
               variant="primary"
               onClick={handleSubmit}
-              disabled={saving || (hasYes && !followUpCompleted)}
+              disabled={saving}
             >
-              {saving ? 'Menyimpan...' : 'Simpan Response'}
+              {saving ? 'Menyimpan...' : 'Simpan Hasil'}
             </Button>
             <Button variant="secondary" onClick={() => navigate(-1)}>
               Batal

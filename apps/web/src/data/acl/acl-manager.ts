@@ -37,6 +37,16 @@ export interface AclManager {
    * Allows anyone to send notifications to the inbox
    */
   setupInboxAccess(): Promise<Result<void>>;
+
+  /**
+   * Grant access to a container with specified modes
+   */
+  grantContainerAccess(containerPath: string, agentWebId: string, modes: ('Read' | 'Write')[]): Promise<Result<void>>;
+
+  /**
+   * Revoke access to a container for an agent
+   */
+  revokeContainerAccess(containerPath: string, agentWebId: string): Promise<Result<void>>;
 }
 
 class AclManagerImpl implements AclManager {
@@ -585,9 +595,201 @@ class AclManagerImpl implements AclManager {
       );
     }
   }
+
+  async grantContainerAccess(
+    containerPath: string,
+    agentWebId: string,
+    modes: ('Read' | 'Write')[]
+  ): Promise<Result<void>> {
+    try {
+      const aclUrl = `${containerPath}.acl`;
+      
+      // Ensure container exists
+      const response = await this.podHttp.authed(containerPath, {
+        method: 'HEAD',
+      });
+      
+      if (!response.ok && response.status === 404) {
+        return failure(appError('NotFound', `Container not found: ${containerPath}`));
+      }
+
+      // Read existing ACL or create new
+      let store = new Store();
+      const readResult = await this.readAcl(aclUrl);
+      
+      if (readResult.ok) {
+        store = readResult.value;
+      } else if (readResult.error.type === 'NotFound') {
+        // Initialize with owner's full control
+        this.addContainerOwnerAuth(store, containerPath, aclUrl);
+      } else {
+        return failure(readResult.error);
+      }
+
+      // Add agent's authorization
+      this.addAgentContainerAuth(store, containerPath, aclUrl, agentWebId, modes);
+
+      // Write ACL back
+      const writeResult = await this.writeAcl(aclUrl, store);
+      if (!writeResult.ok) return failure(writeResult.error);
+
+      return success(undefined);
+    } catch (error) {
+      return failure(
+        appError(
+          'NetworkError',
+          'Failed to grant container access',
+          error instanceof Error ? error.message : String(error)
+        )
+      );
+    }
+  }
+
+  async revokeContainerAccess(
+    containerPath: string,
+    agentWebId: string
+  ): Promise<Result<void>> {
+    try {
+      const aclUrl = `${containerPath}.acl`;
+
+      // Read existing ACL
+      const readResult = await this.readAcl(aclUrl);
+      if (!readResult.ok) {
+        if (readResult.error.type === 'NotFound') {
+          // No ACL means no permissions granted, nothing to revoke
+          return success(undefined);
+        }
+        return failure(readResult.error);
+      }
+
+      let store = readResult.value;
+
+      // Remove agent's authorization
+      store = this.removeAgentContainerAuth(store, agentWebId);
+
+      // Write ACL back
+      const writeResult = await this.writeAcl(aclUrl, store);
+      if (!writeResult.ok) return failure(writeResult.error);
+
+      return success(undefined);
+    } catch (error) {
+      return failure(
+        appError(
+          'NetworkError',
+          'Failed to revoke container access',
+          error instanceof Error ? error.message : String(error)
+        )
+      );
+    }
+  }
+
+  private addContainerOwnerAuth(store: Store, containerPath: string, aclUrl: string): void {
+    const authId = `${aclUrl}#owner`;
+
+    store.addQuad({
+      subject: namedNode(authId),
+      predicate: namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+      object: namedNode(`${ACL}Authorization`),
+      graph: namedNode(''),
+    } as any);
+
+    store.addQuad({
+      subject: namedNode(authId),
+      predicate: namedNode(`${ACL}agent`),
+      object: namedNode(this.ownerWebId),
+      graph: namedNode(''),
+    } as any);
+
+    store.addQuad({
+      subject: namedNode(authId),
+      predicate: namedNode(`${ACL}accessTo`),
+      object: namedNode(containerPath),
+      graph: namedNode(''),
+    } as any);
+
+    store.addQuad({
+      subject: namedNode(authId),
+      predicate: namedNode(`${ACL}default`),
+      object: namedNode(containerPath),
+      graph: namedNode(''),
+    } as any);
+
+    ['Read', 'Write', 'Control'].forEach(mode => {
+      store.addQuad({
+        subject: namedNode(authId),
+        predicate: namedNode(`${ACL}mode`),
+        object: namedNode(`${ACL}${mode}`),
+        graph: namedNode(''),
+      } as any);
+    });
+  }
+
+  private addAgentContainerAuth(
+    store: Store,
+    containerPath: string,
+    aclUrl: string,
+    agentWebId: string,
+    modes: ('Read' | 'Write')[]
+  ): void {
+    // Use hash of agent WebID for unique auth ID
+    const authId = `${aclUrl}#agent-${agentWebId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    store.addQuad({
+      subject: namedNode(authId),
+      predicate: namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+      object: namedNode(`${ACL}Authorization`),
+      graph: namedNode(''),
+    } as any);
+
+    store.addQuad({
+      subject: namedNode(authId),
+      predicate: namedNode(`${ACL}agent`),
+      object: namedNode(agentWebId),
+      graph: namedNode(''),
+    } as any);
+
+    store.addQuad({
+      subject: namedNode(authId),
+      predicate: namedNode(`${ACL}accessTo`),
+      object: namedNode(containerPath),
+      graph: namedNode(''),
+    } as any);
+
+    store.addQuad({
+      subject: namedNode(authId),
+      predicate: namedNode(`${ACL}default`),
+      object: namedNode(containerPath),
+      graph: namedNode(''),
+    } as any);
+
+    modes.forEach(mode => {
+      store.addQuad({
+        subject: namedNode(authId),
+        predicate: namedNode(`${ACL}mode`),
+        object: namedNode(`${ACL}${mode}`),
+        graph: namedNode(''),
+      } as any);
+    });
+  }
+
+  private removeAgentContainerAuth(store: Store, agentWebId: string): Store {
+    const newStore = new Store();
+    
+    // Find all authorization subjects that have this agent
+    const agentQuads = store.getQuads(null, namedNode(`${ACL}agent`), namedNode(agentWebId), null);
+    const authSubjects = new Set(agentQuads.map(q => q.subject.value));
+
+    // Copy all quads except those related to this agent's authorizations
+    for (const quad of store) {
+      if (!authSubjects.has((quad.subject as any).value)) {
+        newStore.addQuad(quad);
+      }
+    }
+
+    return newStore;
+  }
 }
 
 export const createAclManager = (config: AclConfig): AclManager => {
   return new AclManagerImpl(config);
-};
 };

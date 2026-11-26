@@ -137,6 +137,22 @@ export class AppContainer {
     return this._solidIo;
   }
 
+  async getAclManager(): Promise<AclManager> {
+    if (!this._aclManager) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create ACL manager');
+      }
+
+      this._aclManager = createAclManager({
+        podHttp: this.podHttp,
+        ownerWebId: webId,
+        logger: this.logger,
+      });
+    }
+    return this._aclManager;
+  }
+
   /**
    * Get the body repository, initializing storage root via pim:storage discovery.
    * AR-19: Storage root discovered from WebID document on first access.

@@ -33,7 +33,20 @@ export const createAccessRepository = (
 ): AccessRepository => {
   let webId = '';
   let storageRoot = options.storageRoot;
-  const aclManager: AclManager = createAclManager(options.solidIo);
+  let aclManager: AclManager | null = null;
+
+  const getAclManager = (): AclManager => {
+    if (!aclManager) {
+      if (!webId) {
+        throw new Error('WebId must be set before accessing AclManager');
+      }
+      aclManager = createAclManager({
+        podHttp: options.solidIo.getHttp(),
+        ownerWebId: webId,
+      });
+    }
+    return aclManager;
+  };
 
   const getGrantsContainerUrl = (): string => {
     return `${storageRoot}fitpod/access/grants/`;
@@ -202,7 +215,7 @@ export const createAccessRepository = (
       const modes = permissionToModes(grant.permissions);
       
       for (const containerPath of containerPaths) {
-        const aclResult = await aclManager.grantContainerAccess(
+        const aclResult = await getAclManager().grantContainerAccess(
           containerPath,
           grant.grantedTo,
           modes
@@ -253,7 +266,7 @@ export const createAccessRepository = (
       const containerPaths = scopeToContainerPaths(storageRoot, grant.scope);
       
       for (const containerPath of containerPaths) {
-        const aclResult = await aclManager.revokeContainerAccess(
+        const aclResult = await getAclManager().revokeContainerAccess(
           containerPath,
           grant.grantedTo
         );

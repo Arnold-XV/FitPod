@@ -194,12 +194,25 @@ class SolidIoImpl implements SolidIo {
 
   async deleteResource(url: string): Promise<Result<void>> {
     try {
+      console.log('[SolidIo] DELETE request:', url);
       const response = await this.http.authed(url, {
         method: 'DELETE',
       });
+      console.log('[SolidIo] DELETE response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: {
+          'content-type': response.headers.get('content-type'),
+          'wac-allow': response.headers.get('wac-allow'),
+        }
+      });
 
-      return handleHttpResponse(response, async () => undefined);
+      const result = handleHttpResponse(response, async () => undefined);
+      console.log('[SolidIo] DELETE result:', result);
+      return result;
     } catch (error) {
+      console.error('[SolidIo] DELETE error:', error);
       return failure(
         appError(
           'NetworkError',

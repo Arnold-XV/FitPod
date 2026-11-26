@@ -176,7 +176,25 @@ export class WorkoutRepository {
     await this.ensureRoot();
     const url = `${this.root}fitpod/sessions/${sessionId}.ttl`;
     console.log('[WorkoutRepository] Deleting session:', { sessionId, url });
-    return await this.io.deleteResource(url);
+    
+    const result = await this.io.deleteResource(url);
+    console.log('[WorkoutRepository] Delete result:', result);
+    
+    // Verify deletion
+    if (result.ok) {
+      const verify = await this.io.readTurtle(url);
+      console.log('[WorkoutRepository] Post-delete verification:', {
+        fileStillExists: verify.ok,
+        isNotFound: !verify.ok && verify.error?.type === 'NotFound',
+        verifyResult: verify
+      });
+      
+      if (verify.ok) {
+        console.error('[WorkoutRepository] WARNING: File still exists after delete!');
+      }
+    }
+    
+    return result;
   }
 }
 

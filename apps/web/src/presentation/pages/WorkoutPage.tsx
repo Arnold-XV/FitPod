@@ -326,22 +326,39 @@ export const WorkoutPage = () => {
   };
 
   const deleteSession = async () => {
-    console.log('[WorkoutPage] deleteSession called', { plan, session, selectedDay });
+    console.log('[WorkoutPage] ========== DELETE SESSION START ==========');
+    console.log('[WorkoutPage] deleteSession called', { 
+      plan: plan?.id, 
+      planName: plan?.name,
+      session: session?.id, 
+      selectedDay,
+      saved,
+      sessionBlocks: session?.exerciseBlocks?.length 
+    });
+    
     if (!plan || !session) {
-      console.log('[WorkoutPage] deleteSession aborted: no plan or session');
-      return;
-    }
-    if (!window.confirm('Hapus riwayat sesi ini? Data tidak dapat dikembalikan.')) {
-      console.log('[WorkoutPage] deleteSession cancelled by user');
+      console.error('[WorkoutPage] ABORT: Missing plan or session', { plan: !!plan, session: !!session });
+      window.alert('Error: Plan atau session tidak ditemukan. Refresh halaman.');
       return;
     }
     
+    console.log('[WorkoutPage] Showing confirm dialog...');
+    if (!window.confirm('Hapus riwayat sesi ini? Data tidak dapat dikembalikan.')) {
+      console.log('[WorkoutPage] User cancelled delete');
+      return;
+    }
+    
+    console.log('[WorkoutPage] User confirmed, proceeding with delete...');
+    
     try {
       const sessionId = `${selectedDay}-${plan.id}`;
-      console.log('[WorkoutPage] Deleting session:', sessionId);
+      console.log('[WorkoutPage] Session ID to delete:', sessionId);
       
       // Delete from Pod
+      console.log('[WorkoutPage] Getting workout repository...');
       const repo = await container.getWorkoutRepository();
+      console.log('[WorkoutPage] Repository obtained, calling deleteSession...');
+      
       const result = await repo.deleteSession(sessionId);
       
       console.log('[WorkoutPage] Delete result:', result);

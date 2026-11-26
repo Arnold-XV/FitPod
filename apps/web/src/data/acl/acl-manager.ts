@@ -590,3 +590,4 @@ class AclManagerImpl implements AclManager {
 export const createAclManager = (config: AclConfig): AclManager => {
   return new AclManagerImpl(config);
 };
+};

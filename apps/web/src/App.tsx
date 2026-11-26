@@ -12,8 +12,10 @@ import { WorkoutPage } from './presentation/pages/WorkoutPage';
 import { ProgressPage } from './presentation/pages/ProgressPage';
 import { SocialPage } from './presentation/pages/SocialPage';
 import { AccessPage } from './presentation/pages/AccessPage';
+import { ProfessionalDashboardPage } from './presentation/pages/ProfessionalDashboardPage';
 import { HealthPage } from './presentation/pages/HealthPage';
 import { SettingsPage } from './presentation/pages/SettingsPage';
+import { ParQPage } from './presentation/pages/ParQPage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isLoggedIn, isLoading } = useAuth();
@@ -77,7 +79,9 @@ function AppRoutes() {
       <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
       <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
       <Route path="/access" element={<ProtectedRoute><AccessPage /></ProtectedRoute>} />
+      <Route path="/professional/dashboard" element={<ProtectedRoute><ProfessionalDashboardPage /></ProtectedRoute>} />
       <Route path="/health" element={<ProtectedRoute><HealthPage /></ProtectedRoute>} />
+      <Route path="/health/parq" element={<ProtectedRoute><ParQPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

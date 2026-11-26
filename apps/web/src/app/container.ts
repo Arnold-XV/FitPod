@@ -17,6 +17,15 @@ import type { SocialRepository } from '@/domain/social/ports';
 import { createAclManager } from '@/data/acl/acl-manager';
 import type { AclManager } from '@/data/acl/acl-manager';
 import { createWorkoutRepository, type WorkoutRepository } from '@/data/repositories/workout/workout-repository';
+import { createAccessRepository } from '@/data/repositories/access/access-repository';
+import { createProfessionalService } from '@/data/repositories/professional/professional-service';
+import { createClientRegistry, type ClientRegistry } from '@/data/repositories/professional/client-registry';
+import { createParQRepository } from '@/data/repositories/health/parq-repository';
+import { createRecommendationRepository } from '@/data/repositories/professional/recommendation-repository';
+import { createClientRecommendationService } from '@/data/repositories/client/client-recommendation-service';
+import type { AccessRepository } from '@/domain/access/ports';
+import type { ProfessionalService, RecommendationRepository, ClientRecommendationService } from '@/domain/professional/ports';
+import type { ParQRepository } from '@/domain/health/ports';
 
 // Use cases
 import { createLoginUseCase } from '@/application/auth/login';
@@ -30,6 +39,15 @@ import { createListConnectionsUseCase } from '@/application/social/list-connecti
 import { createListIncomingRequestsUseCase } from '@/application/social/list-incoming-requests';
 import { createGetSocialFeedUseCase } from '@/application/social/get-social-feed';
 import { createSetupInboxUseCase } from '@/application/social/setup-inbox';
+import { createGrantAccessUseCase } from '@/application/access/grant-access';
+import { createListGrantsUseCase } from '@/application/access/list-grants';
+import { createRevokeAccessUseCase } from '@/application/access/revoke-access';
+import { createListClientsUseCase } from '@/application/professional/list-clients';
+import { createGetClientSummaryUseCase } from '@/application/professional/get-client-summary';
+import { createRegisterClientUseCase } from '@/application/professional/register-client';
+import { createSaveParQResponseUseCase } from '@/application/health/save-parq-response';
+import { createCreateRecommendationUseCase } from '@/application/professional/create-recommendation';
+import { createApplyRecommendationUseCase } from '@/application/client/apply-recommendation';
 
 import type { Clock } from '@/domain/shared/clock';
 import type { IdGenerator } from '@/domain/shared/id-generator';
@@ -61,6 +79,12 @@ export class AppContainer {
     }
     return this._workoutRepository;
   }
+  private _accessRepository?: AccessRepository;
+  private _professionalService?: ProfessionalService;
+  private _clientRegistry?: ClientRegistry;
+  private _parqRepository?: ParQRepository;
+  private _recommendationRepository?: RecommendationRepository;
+  private _clientRecommendationService?: ClientRecommendationService;
 
   // Lazy initialization
   get authSession(): AuthSession {
@@ -161,38 +185,111 @@ export class AppContainer {
         solidIo: this.solidIo,
         storageRoot: '',
       });
-
       this._socialRepository.setWebId(webId);
       await this._socialRepository.ensureStorageRoot();
     }
     return this._socialRepository;
   }
 
-  /**
-   * Refresh the social repository (e.g., after logout/login with different WebID)
-   */
-  async refreshSocialRepository(): Promise<SocialRepository> {
-    this._socialRepository = undefined;
-    return this.getSocialRepository();
-  }
-
-  /**
-   * Get the ACL manager for granting/revoking access
-   */
-  async getAclManager(): Promise<AclManager> {
-    if (!this._aclManager) {
+  async getAccessRepository(): Promise<AccessRepository> {
+    if (!this._accessRepository) {
       const webId = this.authSession.webId;
       if (!webId) {
-        throw new Error('Not authenticated - cannot create ACL manager');
+        throw new Error('Not authenticated - cannot create access repository');
       }
 
-      this._aclManager = createAclManager({
-        podHttp: this.podHttp,
-        ownerWebId: webId,
-        logger: this.logger,
+      this._accessRepository = createAccessRepository({
+        solidIo: this.solidIo,
+        storageRoot: '',
       });
+
+      this._accessRepository.setWebId(webId);
+      await this._accessRepository.ensureStorageRoot();
     }
-    return this._aclManager;
+    return this._accessRepository;
+  }
+
+  async getProfessionalService(): Promise<ProfessionalService> {
+    if (!this._professionalService) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create professional service');
+      }
+
+      this._professionalService = createProfessionalService({
+        solidIo: this.solidIo,
+      });
+
+      this._professionalService.setWebId(webId);
+    }
+    return this._professionalService;
+  }
+
+  async getClientRegistry(): Promise<ClientRegistry> {
+    if (!this._clientRegistry) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create client registry');
+      }
+
+      const url = new URL(webId);
+      const storageRoot = `${url.protocol}//${url.host}/`;
+
+      this._clientRegistry = createClientRegistry(this.solidIo, storageRoot);
+    }
+    return this._clientRegistry;
+  }
+
+  async getParQRepository(): Promise<ParQRepository> {
+    if (!this._parqRepository) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create PAR-Q repository');
+      }
+
+      this._parqRepository = createParQRepository({
+        solidIo: this.solidIo,
+        storageRoot: '',
+      });
+
+      this._parqRepository.setWebId(webId);
+      await this._parqRepository.ensureStorageRoot();
+    }
+    return this._parqRepository;
+  }
+
+  async getRecommendationRepository(): Promise<RecommendationRepository> {
+    if (!this._recommendationRepository) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create recommendation repository');
+      }
+
+      this._recommendationRepository = createRecommendationRepository({
+        solidIo: this.solidIo,
+        storageRoot: '',
+      });
+
+      this._recommendationRepository.setWebId(webId);
+      await this._recommendationRepository.ensureStorageRoot();
+    }
+    return this._recommendationRepository;
+  }
+
+  async getClientRecommendationService(): Promise<ClientRecommendationService> {
+    if (!this._clientRecommendationService) {
+      const webId = this.authSession.webId;
+      if (!webId) {
+        throw new Error('Not authenticated - cannot create client recommendation service');
+      }
+
+      this._clientRecommendationService = createClientRecommendationService({
+        solidIo: this.solidIo,
+      });
+
+      this._clientRecommendationService.setWebId(webId);
+    }
+    return this._clientRecommendationService;
   }
 
   // Use Cases (cached after first access)
@@ -207,6 +304,15 @@ export class AppContainer {
   private _listIncomingRequestsUseCase?: ReturnType<typeof createListIncomingRequestsUseCase>;
   private _getSocialFeedUseCase?: ReturnType<typeof createGetSocialFeedUseCase>;
   private _setupInboxUseCase?: ReturnType<typeof createSetupInboxUseCase>;
+  private _grantAccessUseCase?: ReturnType<typeof createGrantAccessUseCase>;
+  private _listGrantsUseCase?: ReturnType<typeof createListGrantsUseCase>;
+  private _revokeAccessUseCase?: ReturnType<typeof createRevokeAccessUseCase>;
+  private _listClientsUseCase?: ReturnType<typeof createListClientsUseCase>;
+  private _getClientSummaryUseCase?: ReturnType<typeof createGetClientSummaryUseCase>;
+  private _registerClientUseCase?: ReturnType<typeof createRegisterClientUseCase>;
+  private _saveParQResponseUseCase?: ReturnType<typeof createSaveParQResponseUseCase>;
+  private _createRecommendationUseCase?: ReturnType<typeof createCreateRecommendationUseCase>;
+  private _applyRecommendationUseCase?: ReturnType<typeof createApplyRecommendationUseCase>;
 
   async getLoginUseCase(): Promise<ReturnType<typeof createLoginUseCase>> {
     if (!this._loginUseCase) {
@@ -340,6 +446,129 @@ export class AppContainer {
     }
     return this._setupInboxUseCase;
   }
+  async getGrantAccessUseCase(): Promise<ReturnType<typeof createGrantAccessUseCase>> {
+    if (!this._grantAccessUseCase) {
+      const accessRepository = await this.getAccessRepository();
+      const webId = this.authSession.webId;
+      if (!webId) throw new Error('Not authenticated');
+      
+      this._grantAccessUseCase = createGrantAccessUseCase({
+        accessRepository,
+        clock: this.clock,
+        idGenerator: this.idGenerator,
+        logger: this.logger,
+        currentWebId: webId,
+      });
+    }
+    return this._grantAccessUseCase;
+  }
+
+  async getListGrantsUseCase(): Promise<ReturnType<typeof createListGrantsUseCase>> {
+    if (!this._listGrantsUseCase) {
+      const accessRepository = await this.getAccessRepository();
+      this._listGrantsUseCase = createListGrantsUseCase({
+        accessRepository,
+        logger: this.logger,
+      });
+    }
+    return this._listGrantsUseCase;
+  }
+
+  async getRevokeAccessUseCase(): Promise<ReturnType<typeof createRevokeAccessUseCase>> {
+    if (!this._revokeAccessUseCase) {
+      const accessRepository = await this.getAccessRepository();
+      this._revokeAccessUseCase = createRevokeAccessUseCase({
+        accessRepository,
+        logger: this.logger,
+      });
+    }
+    return this._revokeAccessUseCase;
+  }
+
+  async getListClientsUseCase(): Promise<ReturnType<typeof createListClientsUseCase>> {
+    if (!this._listClientsUseCase) {
+      const professionalService = await this.getProfessionalService();
+      this._listClientsUseCase = createListClientsUseCase({
+        professionalService,
+        logger: this.logger,
+      });
+    }
+    return this._listClientsUseCase;
+  }
+
+  async getGetClientSummaryUseCase(): Promise<ReturnType<typeof createGetClientSummaryUseCase>> {
+    if (!this._getClientSummaryUseCase) {
+      const professionalService = await this.getProfessionalService();
+      this._getClientSummaryUseCase = createGetClientSummaryUseCase({
+        professionalService,
+        logger: this.logger,
+      });
+    }
+    return this._getClientSummaryUseCase;
+  }
+
+  async getRegisterClientUseCase(): Promise<ReturnType<typeof createRegisterClientUseCase>> {
+    if (!this._registerClientUseCase) {
+      const clientRegistry = await this.getClientRegistry();
+      this._registerClientUseCase = createRegisterClientUseCase({
+        clientRegistry,
+        logger: this.logger,
+      });
+    }
+    return this._registerClientUseCase;
+  }
+
+  async getSaveParQResponseUseCase(): Promise<ReturnType<typeof createSaveParQResponseUseCase>> {
+    if (!this._saveParQResponseUseCase) {
+      const parqRepository = await this.getParQRepository();
+      this._saveParQResponseUseCase = createSaveParQResponseUseCase({
+        parqRepository,
+        clock: this.clock,
+        idGenerator: this.idGenerator,
+        logger: this.logger,
+      });
+    }
+    return this._saveParQResponseUseCase;
+  }
+
+  async getCreateRecommendationUseCase(): Promise<ReturnType<typeof createCreateRecommendationUseCase>> {
+    if (!this._createRecommendationUseCase) {
+      const recommendationRepository = await this.getRecommendationRepository();
+      const webId = this.authSession.webId;
+      if (!webId) throw new Error('Not authenticated');
+
+      this._createRecommendationUseCase = createCreateRecommendationUseCase({
+        recommendationRepository,
+        clock: this.clock,
+        idGenerator: this.idGenerator,
+        logger: this.logger,
+        currentWebId: webId,
+      });
+    }
+    return this._createRecommendationUseCase;
+  }
+
+  async getApplyRecommendationUseCase(): Promise<ReturnType<typeof createApplyRecommendationUseCase>> {
+    if (!this._applyRecommendationUseCase) {
+      const clientRecommendationService = await this.getClientRecommendationService();
+      this._applyRecommendationUseCase = createApplyRecommendationUseCase({
+        clientRecommendationService,
+        logger: this.logger,
+      });
+    }
+    return this._applyRecommendationUseCase;
+  }
+
+  async getListReceivedRecommendationsUseCase() {
+    const service = await this.getClientRecommendationService();
+    return () => service.listReceivedRecommendations();
+  }
+
+  async getRejectRecommendationUseCase() {
+    const service = await this.getClientRecommendationService();
+    return (input: { recommendationId: string; professionalWebId: string }) => 
+      service.rejectRecommendation(input.recommendationId, input.professionalWebId);
+  }
 
   /**
    * Reset repositories when user changes
@@ -349,6 +578,12 @@ export class AppContainer {
     this._bodyRepository = undefined;
     this._socialRepository = undefined;
     this._aclManager = undefined;
+    this._accessRepository = undefined;
+    this._professionalService = undefined;
+    this._clientRegistry = undefined;
+    this._parqRepository = undefined;
+    this._recommendationRepository = undefined;
+    this._clientRecommendationService = undefined;
     this._solidIo = undefined;
     this._loginUseCase = undefined;
     this._logoutUseCase = undefined;
@@ -361,6 +596,15 @@ export class AppContainer {
     this._listIncomingRequestsUseCase = undefined;
     this._getSocialFeedUseCase = undefined;
     this._setupInboxUseCase = undefined;
+    this._grantAccessUseCase = undefined;
+    this._listGrantsUseCase = undefined;
+    this._revokeAccessUseCase = undefined;
+    this._listClientsUseCase = undefined;
+    this._getClientSummaryUseCase = undefined;
+    this._registerClientUseCase = undefined;
+    this._saveParQResponseUseCase = undefined;
+    this._createRecommendationUseCase = undefined;
+    this._applyRecommendationUseCase = undefined;
   }
 }
 
